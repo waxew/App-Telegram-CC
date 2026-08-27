@@ -1,0 +1,45 @@
+# =============================================================================
+# Workflow موقت توسعه: اتصال جزئیات سفارش بین Backend و Android.
+# منطق Patch در فایل Python مستقل است و بعد از موفقیت CI حذف می‌شود.
+# =============================================================================
+name: Apply order detail
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - ".github/commands/apply-order-detail"
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Apply coordinated order detail patch
+        run: python3 .github/scripts/apply-order-detail.py
+
+      - name: Verify patch formatting
+        run: git diff --check
+
+      - name: Show patch summary
+        run: git diff --stat
+
+      - name: Commit order detail integration
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add backend/src/api/appApi.js \
+                  app/src/main/java/ir/asteam/telegramcc/data/ApiClient.kt \
+                  app/src/main/java/ir/asteam/telegramcc/ui/AppViewModel.kt \
+                  app/src/main/java/ir/asteam/telegramcc/ui/TelegramCcApp.kt
+          git commit -m "Connect Android order details"
+          git push origin HEAD:main
