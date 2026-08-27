@@ -295,6 +295,7 @@ private fun AuthenticatedShell(
                     AppRoute.Dashboard -> DashboardScreen(state, viewModel)
                     AppRoute.Categories -> CategoryManagementScreen(state, viewModel)
                     AppRoute.Products -> ProductManagementScreen(state, viewModel)
+                    AppRoute.Customers -> CustomerManagementScreen(state, viewModel)
                     AppRoute.Orders -> OrderManagementScreen(state, viewModel)
                     AppRoute.OrderDetail -> OrderDetailScreen(state, viewModel)
                     AppRoute.Settings -> SettingsScreen(state, viewModel)
@@ -339,6 +340,7 @@ private fun AppDrawer(
         DrawerRouteItem("داشبورد", Icons.Default.Dashboard, AppRoute.Dashboard, selectedRoute, onNavigate)
         DrawerRouteItem("دسته‌بندی‌ها", Icons.Default.Storefront, AppRoute.Categories, selectedRoute, onNavigate)
         DrawerRouteItem("محصولات", Icons.Default.ShoppingBag, AppRoute.Products, selectedRoute, onNavigate)
+        DrawerRouteItem("مشتری‌ها", Icons.Default.Person, AppRoute.Customers, selectedRoute, onNavigate)
         DrawerRouteItem("سفارش‌ها", Icons.Default.ReceiptLong, AppRoute.Orders, selectedRoute, onNavigate)
         DrawerRouteItem("تنظیمات", Icons.Default.Settings, AppRoute.Settings, selectedRoute, onNavigate)
 
@@ -833,6 +835,7 @@ private fun routeTitle(route: AppRoute): String = when (route) {
     AppRoute.Dashboard -> "داشبورد"
     AppRoute.Categories -> "دسته‌بندی‌ها"
     AppRoute.Products -> "محصولات"
+    AppRoute.Customers -> "مشتری‌ها"
     AppRoute.Orders -> "سفارش‌ها"
     AppRoute.OrderDetail -> "جزئیات سفارش"
     AppRoute.Settings -> "تنظیمات"

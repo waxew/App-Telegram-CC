@@ -323,6 +323,36 @@ export async function handleAppApi(request, env, supabase) {
     return json({ ok: true });
   }
 
+  // فهرست مشتریان فروشگاه؛ هیچ موجودی/اطلاعاتی از Merchant دیگر بازگردانده نمی‌شود.
+  // این Route فعلاً فقط خواندنی است تا تغییر کیف‌پول بدون Ledger رخ ندهد.
+  if (path === "/api/v1/customers" && request.method === "GET") {
+    const { data, error } = await supabase
+      .from("customers")
+      .select("id, telegram_id, first_name, username, phone, address, wallet_balance, created_at")
+      .eq("merchant_id", merchant.id)
+      .order("created_at", { ascending: false })
+      .limit(500);
+
+    if (error) {
+      console.error("خطا در خواندن مشتریان:", error.message);
+      return apiError("DATABASE_ERROR", "خواندن مشتریان ناموفق بود.", 500);
+    }
+
+    return json({
+      ok: true,
+      customers: (data || []).map((customer) => ({
+        id: customer.id,
+        telegramId: Number(customer.telegram_id || 0),
+        firstName: customer.first_name || "",
+        username: customer.username || "",
+        phone: customer.phone || "",
+        address: customer.address || "",
+        walletBalance: Number(customer.wallet_balance || 0),
+        createdAt: customer.created_at,
+      })),
+    });
+  }
+
   if (path === "/api/v1/orders" && request.method === "GET") {
     const { data, error } = await supabase
       .from("orders")

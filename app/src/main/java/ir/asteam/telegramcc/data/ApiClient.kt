@@ -196,6 +196,28 @@ class ApiClient(
         request("DELETE", "/api/v1/products/$productId")
     }
 
+    /** دریافت مشتریان Merchant فعلی؛ این API فقط Read-only است. */
+    fun customers(): List<Customer> {
+        val array = request("GET", "/api/v1/customers").optJSONArray("customers") ?: JSONArray()
+        return buildList {
+            for (index in 0 until array.length()) {
+                val item = array.getJSONObject(index)
+                add(
+                    Customer(
+                        id = item.getString("id"),
+                        telegramId = item.optLong("telegramId", 0L),
+                        firstName = item.optString("firstName", ""),
+                        username = item.optString("username", ""),
+                        phone = item.optString("phone", ""),
+                        address = item.optString("address", ""),
+                        walletBalance = item.optLong("walletBalance", 0L),
+                        createdAt = item.optString("createdAt", ""),
+                    )
+                )
+            }
+        }
+    }
+
     /** دریافت سفارش‌ها. */
     fun orders(): List<Order> {
         val array = request("GET", "/api/v1/orders").optJSONArray("orders") ?: JSONArray()

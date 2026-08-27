@@ -11,6 +11,7 @@ import androidx.lifecycle.viewModelScope
 import ir.asteam.telegramcc.BuildConfig
 import ir.asteam.telegramcc.data.ApiClient
 import ir.asteam.telegramcc.data.Category
+import ir.asteam.telegramcc.data.Customer
 import ir.asteam.telegramcc.data.Dashboard
 import ir.asteam.telegramcc.data.Merchant
 import ir.asteam.telegramcc.data.Order
@@ -31,6 +32,7 @@ enum class AppRoute {
     Dashboard,
     Categories,
     Products,
+    Customers,
     Orders,
     OrderDetail,
     Settings,
@@ -47,6 +49,7 @@ data class AppUiState(
     val dashboard: Dashboard = Dashboard(),
     val categories: List<Category> = emptyList(),
     val products: List<Product> = emptyList(),
+    val customers: List<Customer> = emptyList(),
     val orders: List<Order> = emptyList(),
     val orderDetail: OrderDetail? = null,
     val errorMessage: String? = null,
@@ -126,6 +129,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             AppRoute.Dashboard -> refreshDashboard()
             AppRoute.Categories -> refreshCategories()
             AppRoute.Products -> refreshProducts()
+            AppRoute.Customers -> refreshCustomers()
             AppRoute.Orders -> refreshOrders()
             else -> Unit
         }
@@ -335,6 +339,15 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 products = products,
                 infoMessage = "محصول حذف شد.",
             )
+        }
+    }
+
+    /** Refresh فهرست مشتریان؛ موجودی کیف‌پول فقط برای نمایش دریافت می‌شود. */
+    fun refreshCustomers() {
+        runAuthenticated { client ->
+            _state.value = _state.value.copy(loading = true)
+            val customers = client.customers()
+            _state.value = _state.value.copy(loading = false, customers = customers)
         }
     }
 
