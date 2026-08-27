@@ -10,11 +10,11 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import ir.asteam.telegramcc.ui.AppViewModel
-import ir.asteam.telegramcc.ui.TelegramCcApp
+import ir.asteam.telegramcc.ui.TelegramCcEntry
 
 /**
  * نقطهٔ ورود اپ اندروید.
- * استفاده از یک Activity و چند Screen کامپوزی باعث ساده‌تر شدن Navigation و Back می‌شود.
+ * صفحهٔ نخست جدید فقط BotFather Token را می‌گیرد و جزئیات زیرساخت را مخفی می‌کند.
  */
 class MainActivity : ComponentActivity() {
 
@@ -27,9 +27,9 @@ class MainActivity : ComponentActivity() {
         // محتوا تا لبه‌های صفحه رسم می‌شود؛ Scaffold فاصلهٔ System Bar را مدیریت می‌کند.
         enableEdgeToEdge()
 
-        // تمام UI از اینجا وارد Compose می‌شود.
+        // Entry جدید: Token BotFather → Session امن → داشبورد مدیریت.
         setContent {
-            TelegramCcApp(viewModel = viewModel)
+            TelegramCcEntry(viewModel = viewModel)
         }
     }
 }
