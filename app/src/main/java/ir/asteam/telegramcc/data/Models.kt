@@ -47,6 +47,21 @@ data class Product(
     val createdAt: String,
 )
 
+/**
+ * مشتری ثبت‌شده در یک فروشگاه.
+ * walletBalance فقط برای نمایش است؛ تغییر موجودی باید از گردش‌حساب مالی انجام شود.
+ */
+data class Customer(
+    val id: String,
+    val telegramId: Long,
+    val firstName: String,
+    val username: String,
+    val phone: String,
+    val address: String,
+    val walletBalance: Long,
+    val createdAt: String,
+)
+
 /** سفارش فروشگاه با اطلاعات خلاصه مشتری؛ مناسب فهرست سفارش‌ها. */
 data class Order(
     val id: String,
