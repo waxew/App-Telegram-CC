@@ -62,7 +62,7 @@ npm run migrate:secrets
 
 - `applicationId`: `ir.asteam.telegramcc`
 - `minSdk`: 26
-- `targetSdk / compileSdk`: 37
+- `targetSdk / compileSdk`: 36
 - `versionCode`: 1
 - `versionName`: 1.0.0
 
@@ -70,7 +70,7 @@ npm run migrate:secrets
 
 ## CI
 
-- `.github/workflows/android-ci.yml` پروژه Android را با JDK 17، Gradle 9.5 و API 37 Build می‌کند و APK دیباگ را به‌عنوان Artifact نگه می‌دارد.
+- `.github/workflows/android-ci.yml` پروژه Android را با JDK 17، Gradle 9.5 و API 36 Build می‌کند و APK دیباگ را به‌عنوان Artifact نگه می‌دارد.
 - `.github/workflows/backend-ci.yml` Syntax و Dry-run Build بک‌اند Cloudflare را بررسی می‌کند.
 
 ## ساختار
