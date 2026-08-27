@@ -5,7 +5,8 @@
   "type": "module",
   "main": "src/index.js",
   "scripts": {
-    "check": "find src scripts -name '*.js' -o -name '*.mjs' | xargs -n1 node --check",
+    "check": "find src scripts test -name '*.js' -o -name '*.mjs' | xargs -n1 node --check",
+    "test": "node --test test/*.test.js",
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
     "deploy:check": "wrangler deploy --dry-run",
