@@ -219,6 +219,43 @@ class ApiClient(
         }
     }
 
+    /** دریافت جزئیات کامل یک سفارش متعلق به Merchant فعلی. */
+    fun orderDetail(orderId: String): OrderDetail {
+        val root = request("GET", "/api/v1/orders/$orderId")
+        val json = root.getJSONObject("order")
+        val itemsJson = json.optJSONArray("items") ?: JSONArray()
+
+        val items = buildList {
+            for (index in 0 until itemsJson.length()) {
+                val item = itemsJson.getJSONObject(index)
+                add(
+                    OrderItem(
+                        id = item.getString("id"),
+                        productId = item.optNullableString("productId"),
+                        productName = item.optString("productName", "محصول"),
+                        unitPrice = item.optLong("unitPrice", 0L),
+                        quantity = item.optInt("quantity", 0),
+                    )
+                )
+            }
+        }
+
+        return OrderDetail(
+            id = json.getString("id"),
+            status = json.optString("status", "pending"),
+            subtotalAmount = json.optLong("subtotalAmount", 0L),
+            discountAmount = json.optLong("discountAmount", 0L),
+            totalAmount = json.optLong("totalAmount", 0L),
+            phone = json.optString("phone", ""),
+            address = json.optString("address", ""),
+            deliveryMethod = json.optString("deliveryMethod", ""),
+            createdAt = json.optString("createdAt", ""),
+            customerName = json.optString("customerName", ""),
+            customerUsername = json.optString("customerUsername", ""),
+            items = items,
+        )
+    }
+
     /** تغییر وضعیت سفارش با لیست وضعیت‌های کنترل‌شده در Backend. */
     fun updateOrderStatus(orderId: String, status: String) {
         request(

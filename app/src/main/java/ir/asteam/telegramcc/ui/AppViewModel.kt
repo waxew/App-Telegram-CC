@@ -14,6 +14,7 @@ import ir.asteam.telegramcc.data.Category
 import ir.asteam.telegramcc.data.Dashboard
 import ir.asteam.telegramcc.data.Merchant
 import ir.asteam.telegramcc.data.Order
+import ir.asteam.telegramcc.data.OrderDetail
 import ir.asteam.telegramcc.data.Product
 import ir.asteam.telegramcc.data.SecurePreferences
 import ir.asteam.telegramcc.data.VersionInfo
@@ -31,6 +32,7 @@ enum class AppRoute {
     Categories,
     Products,
     Orders,
+    OrderDetail,
     Settings,
     AboutUs,
     ContactUs,
@@ -46,6 +48,7 @@ data class AppUiState(
     val categories: List<Category> = emptyList(),
     val products: List<Product> = emptyList(),
     val orders: List<Order> = emptyList(),
+    val orderDetail: OrderDetail? = null,
     val errorMessage: String? = null,
     val infoMessage: String? = null,
     val versionInfo: VersionInfo? = null,
@@ -128,14 +131,23 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    /** دکمه Back در صفحات فرعی همیشه به داشبورد برمی‌گردد، نه خروج ناگهانی از اپ. */
+    /**
+     * رفتار Back برنامه.
+     * جزئیات سفارش یک سطح زیر فهرست سفارش‌هاست، بنابراین ابتدا به Orders برمی‌گردد؛
+     * سایر صفحات فرعی مثل قبل به داشبورد برمی‌گردند.
+     */
     fun navigateBack(): Boolean {
         val current = _state.value.route
-        return if (current != AppRoute.Dashboard && current != AppRoute.Pair) {
-            _state.value = _state.value.copy(route = AppRoute.Dashboard)
-            true
-        } else {
-            false
+        return when {
+            current == AppRoute.OrderDetail -> {
+                _state.value = _state.value.copy(route = AppRoute.Orders, orderDetail = null)
+                true
+            }
+            current != AppRoute.Dashboard && current != AppRoute.Pair -> {
+                _state.value = _state.value.copy(route = AppRoute.Dashboard)
+                true
+            }
+            else -> false
         }
     }
 
@@ -332,6 +344,46 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             _state.value = _state.value.copy(loading = true)
             val orders = client.orders()
             _state.value = _state.value.copy(loading = false, orders = orders)
+        }
+    }
+
+    /** بازکردن یک سفارش؛ جزئیات فقط پس از پاسخ موفق سرور نمایش داده می‌شود. */
+    fun openOrder(order: Order) {
+        runAuthenticated { client ->
+            _state.value = _state.value.copy(loading = true, errorMessage = null)
+            val detail = client.orderDetail(order.id)
+            _state.value = _state.value.copy(
+                route = AppRoute.OrderDetail,
+                loading = false,
+                orderDetail = detail,
+            )
+        }
+    }
+
+    /** تازه‌سازی سفارش بازشده بدون تغییر Route. */
+    fun refreshOrderDetail() {
+        val current = _state.value.orderDetail ?: return
+        runAuthenticated { client ->
+            _state.value = _state.value.copy(loading = true)
+            val detail = client.orderDetail(current.id)
+            _state.value = _state.value.copy(loading = false, orderDetail = detail)
+        }
+    }
+
+    /** تغییر وضعیت در صفحه جزئیات و همگام‌سازی هم جزئیات و هم فهرست سفارش‌ها. */
+    fun updateOrderDetailStatus(status: String) {
+        val current = _state.value.orderDetail ?: return
+        runAuthenticated { client ->
+            _state.value = _state.value.copy(loading = true)
+            client.updateOrderStatus(current.id, status)
+            val detail = client.orderDetail(current.id)
+            val orders = client.orders()
+            _state.value = _state.value.copy(
+                loading = false,
+                orderDetail = detail,
+                orders = orders,
+                infoMessage = "وضعیت سفارش به‌روز شد.",
+            )
         }
     }
 

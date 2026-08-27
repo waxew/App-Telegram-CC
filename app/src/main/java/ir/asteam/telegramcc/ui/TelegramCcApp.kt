@@ -295,7 +295,8 @@ private fun AuthenticatedShell(
                     AppRoute.Dashboard -> DashboardScreen(state, viewModel)
                     AppRoute.Categories -> CategoryManagementScreen(state, viewModel)
                     AppRoute.Products -> ProductManagementScreen(state, viewModel)
-                    AppRoute.Orders -> OrdersScreen(state, viewModel)
+                    AppRoute.Orders -> OrderManagementScreen(state, viewModel)
+                    AppRoute.OrderDetail -> OrderDetailScreen(state, viewModel)
                     AppRoute.Settings -> SettingsScreen(state, viewModel)
                     AppRoute.AboutUs -> AboutUsScreen()
                     AppRoute.ContactUs -> ContactUsScreen()
@@ -833,6 +834,7 @@ private fun routeTitle(route: AppRoute): String = when (route) {
     AppRoute.Categories -> "دسته‌بندی‌ها"
     AppRoute.Products -> "محصولات"
     AppRoute.Orders -> "سفارش‌ها"
+    AppRoute.OrderDetail -> "جزئیات سفارش"
     AppRoute.Settings -> "تنظیمات"
     AppRoute.AboutUs -> "درباره ما"
     AppRoute.ContactUs -> "تماس با ما"

@@ -348,6 +348,63 @@ export async function handleAppApi(request, env, supabase) {
     });
   }
 
+  // جزئیات یک سفارش؛ ابتدا مالکیت Merchant روی خود سفارش اثبات می‌شود و فقط
+  // بعد از آن اقلام همان سفارش خوانده می‌شوند. این دو Query صریح، ریسک IDOR را
+  // کمتر می‌کنند و وابسته به نام‌گذاری خودکار Relation در PostgREST نیستند.
+  const orderDetailMatch = path.match(/^\/api\/v1\/orders\/([a-f0-9-]+)$/i);
+  if (orderDetailMatch && request.method === "GET") {
+    const { data: order, error: orderError } = await supabase
+      .from("orders")
+      .select(
+        "id, status, subtotal_amount, discount_amount, total_amount, phone, address, delivery_method, created_at, customer:customers(first_name, username)"
+      )
+      .eq("id", orderDetailMatch[1])
+      .eq("merchant_id", merchant.id)
+      .maybeSingle();
+
+    if (orderError) {
+      console.error("خطا در خواندن جزئیات سفارش:", orderError.message);
+      return apiError("DATABASE_ERROR", "خواندن جزئیات سفارش ناموفق بود.", 500);
+    }
+    if (!order) return apiError("NOT_FOUND", "سفارش پیدا نشد.", 404);
+
+    // چون order.id فقط بعد از کنترل merchant_id به این مرحله می‌رسد، اقلامی که
+    // با این order_id خوانده می‌شوند متعلق به همین فروشگاه هستند.
+    const { data: items, error: itemsError } = await supabase
+      .from("order_items")
+      .select("id, product_id, product_name, unit_price, quantity")
+      .eq("order_id", order.id);
+
+    if (itemsError) {
+      console.error("خطا در خواندن اقلام سفارش:", itemsError.message);
+      return apiError("DATABASE_ERROR", "خواندن اقلام سفارش ناموفق بود.", 500);
+    }
+
+    return json({
+      ok: true,
+      order: {
+        id: order.id,
+        status: order.status,
+        subtotalAmount: Number(order.subtotal_amount || 0),
+        discountAmount: Number(order.discount_amount || 0),
+        totalAmount: Number(order.total_amount || 0),
+        phone: order.phone || "",
+        address: order.address || "",
+        deliveryMethod: order.delivery_method || "",
+        createdAt: order.created_at,
+        customerName: order.customer?.first_name || "",
+        customerUsername: order.customer?.username || "",
+        items: (items || []).map((item) => ({
+          id: item.id,
+          productId: item.product_id || null,
+          productName: item.product_name,
+          unitPrice: Number(item.unit_price || 0),
+          quantity: Number(item.quantity || 0),
+        })),
+      },
+    });
+  }
+
   const orderStatusMatch = path.match(/^\/api\/v1\/orders\/([a-f0-9-]+)\/status$/i);
   if (orderStatusMatch && request.method === "PATCH") {
     const body = await readJson(request);
