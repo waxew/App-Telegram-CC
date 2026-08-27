@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- رشته‌های ثابت عمومی برنامه؛ متن‌های پویا در Kotlin ساخته می‌شوند. -->
+<resources>
+    <string name="app_name">تلگرام CC</string>
+</resources>

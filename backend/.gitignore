@@ -1,0 +1,18 @@
+# وابستگی‌های نصب‌شده (با npm install دوباره ساخته می‌شوند)
+node_modules/
+
+# فایل‌های محیطی حاوی اطلاعات محرمانه — هرگز نباید داخل گیت باشند
+.env
+.env.local
+.dev.vars
+
+# فایل‌های موقت Cloudflare Wrangler
+.wrangler/
+
+# لاگ‌ها
+npm-debug.log*
+*.log
+
+# فایل‌های سیستم‌عامل
+.DS_Store
+Thumbs.db

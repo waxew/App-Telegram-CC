@@ -1,0 +1,16 @@
+# =============================================================================
+# تنظیمات Cloudflare Worker برای هستهٔ فروشگاه‌ساز تلگرام.
+# هیچ Secret واقعی در این فایل قرار نمی‌گیرد.
+# =============================================================================
+name = "app-telegram-cc"
+main = "src/index.js"
+compatibility_date = "2026-08-27"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+PROJECT_NAME = "App Telegram CC"
+# اطلاعات عمومی کنترل نسخهٔ اپ؛ برای انتشار واقعی URL دانلود را تنظیم کنید.
+ANDROID_LATEST_VERSION_CODE = "1"
+ANDROID_LATEST_VERSION_NAME = "1.0.0"
+ANDROID_DOWNLOAD_URL = ""
+ANDROID_FORCE_UPDATE = "false"
