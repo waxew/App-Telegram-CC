@@ -12,16 +12,16 @@ plugins {
 android {
     // namespace پایدار است تا کلاس‌های R/BuildConfig و آپدیت‌های آینده سازگار بمانند.
     namespace = "ir.asteam.telegramcc"
-    // API 37 با AGP 9.3 پشتیبانی می‌شود.
-    compileSdk = 37
+    // Android 16 پایدار در زمان این نسخه API 36 است.
+    compileSdk = 36
 
     defaultConfig {
         // applicationId از همین نسخه ثابت می‌ماند تا نسخه‌های بعد روی نسخه قبلی نصب شوند.
         applicationId = "ir.asteam.telegramcc"
         // Android 8.0 به بالا؛ سطح مناسبی برای Keystore و APIهای مدرن است.
         minSdk = 26
-        // هدف انتشار فعلی پروژه.
-        targetSdk = 37
+        // هدف انتشار فعلی پروژه Android 16 پایدار است.
+        targetSdk = 36
         // هر انتشار جدید باید versionCode بزرگ‌تری داشته باشد.
         versionCode = 1
         // نسخهٔ قابل نمایش برای کاربر.
