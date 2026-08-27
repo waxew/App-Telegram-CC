@@ -1,33 +1,73 @@
 // =============================================================================
 // src/lib/supabase.js
-// این فایل مسئول ساختن «کلاینت» (client) اتصال به دیتابیس Supabase است.
-// هر فایل دیگری که بخواهد با دیتابیس کار کند (خواندن/نوشتن محصول، سفارش و...)
-// همین تابع را صدا می‌زند تا یک اتصال آماده بگیرد.
+// این فایل مسئول ساختن Client اتصال به Supabase است.
+//
+// نکتهٔ امنیتی مهم این پروژه:
+// App-Telegram-CC دیتابیس مستقل خودش را دارد و نباید حتی بر اثر اشتباه تنظیمات
+// به دیتابیس پروژهٔ دیگری متصل شود. به همین دلیل قبل از ساخت Client، Project Ref
+// موجود در SUPABASE_URL با SUPABASE_PROJECT_REF مقایسه می‌شود.
 // =============================================================================
 
-// وارد کردن تابع createClient از پکیج رسمی Supabase برای جاوااسکریپت
 import { createClient } from "@supabase/supabase-js";
 
 /**
- * یک کلاینت Supabase می‌سازد و برمی‌گرداند.
+ * تنظیمات آدرس Supabase را قبل از هر اتصال اعتبارسنجی می‌کند.
+ * این Guard جلوی اتصال تصادفی Worker به پروژه‌هایی مثل ai-panel را می‌گیرد.
  *
- * چرا این کار را به‌شکل یک تابع جدا نوشتیم و مستقیم createClient صدا نزدیم؟
- * چون در Cloudflare Workers، متغیرهای محیطی (مثل آدرس و کلید Supabase) از
- * طریق پارامتر `env` که Cloudflare خودش به هر درخواست پاس می‌دهد در دسترس‌اند
- * (بر خلاف Node.js معمولی که از process.env استفاده می‌کند). پس این تابع
- * همان env را می‌گیرد و کلاینت را با مقادیر درست می‌سازد.
+ * @param {object} env - Environment bindings در Cloudflare Workers
+ * @returns {string} آدرس HTTPS تاییدشدهٔ Supabase بدون slash انتهایی
+ */
+export function validateSupabaseProjectConfig(env) {
+  const rawUrl = String(env?.SUPABASE_URL ?? "").trim();
+  const expectedRef = String(env?.SUPABASE_PROJECT_REF ?? "").trim();
+
+  if (!rawUrl) {
+    throw new Error("SUPABASE_URL is not configured.");
+  }
+  if (!expectedRef) {
+    throw new Error("SUPABASE_PROJECT_REF is not configured.");
+  }
+
+  let parsed;
+  try {
+    parsed = new URL(rawUrl);
+  } catch {
+    throw new Error("SUPABASE_URL is not a valid URL.");
+  }
+
+  if (parsed.protocol !== "https:") {
+    throw new Error("SUPABASE_URL must use HTTPS.");
+  }
+
+  const expectedHost = `${expectedRef}.supabase.co`;
+  if (parsed.hostname.toLowerCase() !== expectedHost.toLowerCase()) {
+    throw new Error(
+      `Supabase project mismatch: expected ${expectedHost}, received ${parsed.hostname}.`,
+    );
+  }
+
+  return parsed.origin;
+}
+
+/**
+ * Client سروری Supabase را می‌سازد.
+ * service_role فقط از Secretهای Cloudflare خوانده می‌شود و هیچ‌وقت نباید داخل
+ * سورس Android، wrangler.toml یا GitHub commit شود.
  *
  * @param {object} env - آبجکت env که Cloudflare Workers در هر درخواست می‌دهد
  * @returns {import('@supabase/supabase-js').SupabaseClient}
  */
 export function getSupabaseClient(env) {
-  // SUPABASE_URL: آدرس پروژه‌ی شما در Supabase (از تنظیمات پروژه قابل کپی است)
-  // SUPABASE_SERVICE_ROLE_KEY: کلید سرویس که دسترسی کامل خواندن/نوشتن می‌دهد
-  // (فقط سمت سرور استفاده می‌شود، هرگز نباید در فرانت‌اند یا جای عمومی باشد)
-  return createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
+  const supabaseUrl = validateSupabaseProjectConfig(env);
+  const serviceRoleKey = String(env?.SUPABASE_SERVICE_ROLE_KEY ?? "").trim();
+
+  if (!serviceRoleKey) {
+    throw new Error("SUPABASE_SERVICE_ROLE_KEY is not configured.");
+  }
+
+  return createClient(supabaseUrl, serviceRoleKey, {
     auth: {
-      // در محیط سرور به‌صورت خودکار session/token را در حافظه نگه نمی‌داریم
-      // چون هر درخواست Worker کاملا مستقل و بدون حافظه‌ی قبلی اجرا می‌شود
+      // Worker Stateless است؛ Sessionهای Supabase Auth را در حافظه نگه نمی‌داریم.
       persistSession: false,
       autoRefreshToken: false,
     },
