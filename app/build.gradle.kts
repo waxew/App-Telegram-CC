@@ -61,18 +61,18 @@ android {
 }
 
 dependencies {
-    // BOM همه کتابخانه‌های Compose را روی نسخه‌های سازگار با هم نگه می‌دارد.
-    val composeBom = platform("androidx.compose:compose-bom:2026.08.00")
+    // BOM آگوست 2025 شامل شاخه پایدار Compose 1.9 است و با compileSdk 36 سازگار می‌ماند.
+    val composeBom = platform("androidx.compose:compose-bom:2025.08.00")
     implementation(composeBom)
     androidTestImplementation(composeBom)
 
-    // پایه‌های AndroidX و Compose.
-    implementation("androidx.core:core-ktx:1.19.0")
-    implementation("androidx.activity:activity-compose:1.13.0")
-    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.11.0")
-    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.11.0")
-    implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.11.0")
-    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.11.0")
+    // این نسخه‌ها عمداً روی آخرین شاخه‌های پایدارِ سازگار با Android API 36 پین شده‌اند.
+    implementation("androidx.core:core-ktx:1.17.0")
+    implementation("androidx.activity:activity-compose:1.11.0")
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.9.4")
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.9.4")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.9.4")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.9.4")
 
     // UI Material 3 و مجموعه آیکون‌های Material برای Drawer و صفحات.
     implementation("androidx.compose.ui:ui")
