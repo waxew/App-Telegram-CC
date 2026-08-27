@@ -1,0 +1,45 @@
+# =============================================================================
+# Workflow موقت توسعه: اتصال فهرست مشتریان Backend به Android.
+# بعد از موفقیت CI حذف می‌شود.
+# =============================================================================
+name: Apply customer list
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - ".github/commands/apply-customer-list"
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Apply coordinated customer list patch
+        run: python3 .github/scripts/apply-customer-list.py
+
+      - name: Verify patch formatting
+        run: git diff --check
+
+      - name: Show patch summary
+        run: git diff --stat
+
+      - name: Commit customer list integration
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add backend/src/api/appApi.js \
+                  app/src/main/java/ir/asteam/telegramcc/data/ApiClient.kt \
+                  app/src/main/java/ir/asteam/telegramcc/ui/AppViewModel.kt \
+                  app/src/main/java/ir/asteam/telegramcc/ui/TelegramCcApp.kt
+          git commit -m "Connect Android customer list"
+          git push origin HEAD:main
