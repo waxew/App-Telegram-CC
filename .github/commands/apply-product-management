@@ -1,2 +1,0 @@
-# One-time trigger for .github/workflows/apply-product-management.yml
-# Retry after moving coordinated patch logic into a standalone Python script.
