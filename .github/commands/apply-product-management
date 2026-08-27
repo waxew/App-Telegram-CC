@@ -1,0 +1,2 @@
+# One-time trigger for .github/workflows/apply-product-management.yml
+# After the coordinated Android patch succeeds, this marker and workflow are removed.
