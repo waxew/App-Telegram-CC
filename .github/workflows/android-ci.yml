@@ -6,8 +6,17 @@ name: Android CI
 on:
   push:
     branches: ["main"]
+    paths:
+      - "app/**"
+      - "build.gradle.kts"
+      - "settings.gradle.kts"
+      - "gradle.properties"
+      - ".github/workflows/android-ci.yml"
   pull_request:
     branches: ["main"]
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -35,9 +44,29 @@ jobs:
           gradle-version: "9.5.0"
 
       - name: Run unit tests and build debug APK
-        run: gradle :app:testDebugUnitTest :app:assembleDebug --stacktrace
+        id: gradle_build
+        shell: bash
+        run: |
+          set +e
+          set -o pipefail
+          gradle :app:testDebugUnitTest :app:assembleDebug --stacktrace 2>&1 | tee android-build.log
+          code=${PIPESTATUS[0]}
+          echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+          exit "$code"
+
+      - name: Save concise failure log
+        if: failure() && steps.gradle_build.outputs.exit_code != '0'
+        shell: bash
+        run: |
+          tail -n 300 android-build.log > ANDROID_BUILD_FAILURE.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add ANDROID_BUILD_FAILURE.txt
+          git commit -m "chore: capture Android build failure [skip ci]"
+          git push origin HEAD:main
 
       - name: Upload debug APK
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: App-Telegram-CC-debug
