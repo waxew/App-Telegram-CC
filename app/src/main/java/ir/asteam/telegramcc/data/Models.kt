@@ -47,7 +47,7 @@ data class Product(
     val createdAt: String,
 )
 
-/** سفارش فروشگاه با اطلاعات خلاصه مشتری. */
+/** سفارش فروشگاه با اطلاعات خلاصه مشتری؛ مناسب فهرست سفارش‌ها. */
 data class Order(
     val id: String,
     val status: String,
@@ -58,6 +58,42 @@ data class Order(
     val createdAt: String,
     val customerName: String,
     val customerUsername: String,
+)
+
+/**
+ * یک قلم ثبت‌شده داخل سفارش.
+ * نام و قیمت از Snapshot زمان خرید می‌آیند، نه از محصول فعلی؛ بنابراین تاریخچه
+ * سفارش با تغییر نام یا قیمت محصول در آینده عوض نمی‌شود.
+ */
+data class OrderItem(
+    val id: String,
+    val productId: String?,
+    val productName: String,
+    val unitPrice: Long,
+    val quantity: Int,
+) {
+    /** جمع همان ردیف = قیمت واحد × تعداد. */
+    val lineTotal: Long
+        get() = unitPrice * quantity.toLong()
+}
+
+/**
+ * جزئیات کامل یک سفارش برای صفحه مدیریت.
+ * این مدل علاوه بر اطلاعات ارسال، مبالغ قبل/بعد از تخفیف و ریز اقلام را نگه می‌دارد.
+ */
+data class OrderDetail(
+    val id: String,
+    val status: String,
+    val subtotalAmount: Long,
+    val discountAmount: Long,
+    val totalAmount: Long,
+    val phone: String,
+    val address: String,
+    val deliveryMethod: String,
+    val createdAt: String,
+    val customerName: String,
+    val customerUsername: String,
+    val items: List<OrderItem>,
 )
 
 /** پاسخ Pairing؛ توکن نشست فقط همان لحظه دریافت و بعد رمز‌شده ذخیره می‌شود. */
