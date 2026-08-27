@@ -2,13 +2,8 @@
 // src/index.js
 // نقطه‌ی ورودِ اصلیِ کل پروژه روی Cloudflare Workers.
 //
-// هر درخواست HTTP که به آدرس Worker شما برسد، ابتدا از همین فایل عبور
-// می‌کند. وظیفه‌ی این فایل فقط «مسیریابی» (routing) است: بر اساس آدرس
-// (URL) درخواست تصمیم می‌گیرد کدام بخش از کد باید آن را جواب بدهد.
-//
-// دو نوع مسیر اصلی داریم:
-//   ۱. /webhook/master            → مخصوص ربات اصلی (ربات‌ساز)
-//   ۲. /webhook/store/<merchantId> → مخصوص ربات فروشگاهیِ یک مشتری خاص
+// هر درخواست HTTP که به آدرس Worker برسد ابتدا از همین فایل عبور می‌کند.
+// این فایل فقط Routing را انجام می‌دهد و منطق هر بخش در فایل خودش قرار دارد.
 // =============================================================================
 
 import { webhookCallback } from "grammy";
@@ -16,47 +11,53 @@ import { getSupabaseClient } from "./lib/supabase.js";
 import { handleMasterWebhook } from "./masterBot.js";
 import { createStoreBotInstance } from "./storeBot/engine.js";
 import { handleAppApi } from "./api/appApi.js";
+import { handleBotConnectApi } from "./api/botConnectApi.js";
 
 export default {
   /**
-   * تابعی که Cloudflare Workers به‌ازای هر درخواست HTTP صدا می‌زند.
+   * تابع اصلی Cloudflare Worker برای تمام درخواست‌های HTTP.
    * @param {Request} request
-   * @param {object} env - شامل تمام Secret ها و متغیرهای محیطی تعریف‌شده
-   * @param {object} ctx - ابزارهای اجرایی Cloudflare (مثل waitUntil)
+   * @param {object} env
+   * @param {object} ctx
    */
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
 
-    // یک صفحه‌ی خیلی ساده برای اطمینان از این‌که Worker درست بالا آمده
+    // Health Check ساده برای تشخیص بالا بودن Worker.
     if (url.pathname === "/" && request.method === "GET") {
       return new Response("✅ Telegram Store Builder Worker is running.", { status: 200 });
     }
 
     // -----------------------------------------------------------------
-    // REST API اپ اندروید. تمام کلیدهای پرقدرت فقط در Worker باقی می‌مانند.
+    // REST API اپ اندروید.
+    // service_role فقط داخل Worker استفاده می‌شود و هرگز وارد APK نمی‌شود.
     // -----------------------------------------------------------------
     if (url.pathname.startsWith("/api/v1/")) {
       const supabase = getSupabaseClient(env);
+
+      // اتصال اولیه با BotFather Token باید قبل از Router احراز هویت‌شده بررسی شود.
+      const connectResponse = await handleBotConnectApi(request, env, supabase);
+      if (connectResponse) return connectResponse;
+
+      // سایر APIهای اپ از Session محدود Merchant استفاده می‌کنند.
       const apiResponse = await handleAppApi(request, env, supabase);
       if (apiResponse) return apiResponse;
     }
 
     // -----------------------------------------------------------------
-    // مسیر وب‌هوک ربات اصلی (ربات‌ساز)
+    // وب‌هوک ربات اصلی/ربات‌ساز.
     // -----------------------------------------------------------------
     if (url.pathname === "/webhook/master" && request.method === "POST") {
       try {
         return await handleMasterWebhook(request, env);
       } catch (err) {
         console.error("خطا در پردازش وب‌هوک ربات اصلی:", err);
-        // همیشه به تلگرام 200 برمی‌گردانیم تا آپدیت را دوباره‌وباره نفرستد؛
-        // فقط خطا را لاگ می‌کنیم تا خودمان بعدا بررسی کنیم
         return new Response("ok", { status: 200 });
       }
     }
 
     // -----------------------------------------------------------------
-    // مسیر وب‌هوک ربات‌های فروشگاهی: /webhook/store/<merchantId>
+    // وب‌هوک هر ربات فروشگاهی: /webhook/store/<merchantId>
     // -----------------------------------------------------------------
     const storeMatch = url.pathname.match(/^\/webhook\/store\/([a-zA-Z0-9-]+)$/);
     if (storeMatch && request.method === "POST") {
@@ -69,16 +70,12 @@ export default {
       }
     }
 
-    // هر مسیر دیگری = پیدا نشد
     return new Response("Not found", { status: 404 });
   },
 };
 
 /**
- * یک درخواست وب‌هوک واردشده برای یک ربات فروشگاهی مشخص را پردازش می‌کند:
- * ابتدا فروشگاه را از دیتابیس پیدا می‌کند، امنیت درخواست را تایید می‌کند،
- * سپس یک نمونه از ربات آن فروشگاه ساخته و آپدیت را به آن تحویل می‌دهد.
- *
+ * درخواست وب‌هوک یک ربات فروشگاهی را پردازش می‌کند.
  * @param {Request} request
  * @param {object} env
  * @param {string} merchantId
@@ -93,15 +90,10 @@ async function handleStoreWebhook(request, env, merchantId) {
     .maybeSingle();
 
   if (error || !merchant) {
-    // فروشگاهی با این آیدی وجود ندارد (شاید حذف شده)
     return new Response("merchant not found", { status: 404 });
   }
 
-  // -------------------------------------------------------------------
-  // بررسی امنیتی: مطمئن می‌شویم این درخواست واقعا از طرف تلگرام آمده،
-  // نه از یک منبع مخرب که آدرس Worker ما را حدس زده باشد. تلگرام این
-  // هدر را دقیقا با مقداری که هنگام setWebhook تعیین کردیم پر می‌کند.
-  // -------------------------------------------------------------------
+  // Telegram هنگام setWebhook همین Secret را در Header درخواست برمی‌گرداند.
   const secretHeader = request.headers.get("X-Telegram-Bot-Api-Secret-Token");
   if (secretHeader !== merchant.webhook_secret) {
     return new Response("unauthorized", { status: 401 });
