@@ -1,28 +1,22 @@
 # =============================================================================
 # انتشار Production بک‌اند App-Telegram-CC روی Cloudflare Workers.
 #
-# حالت اصلی این Workflow دستی است. Trigger موقت push فقط روی همین فایل اضافه شده
-# تا یک‌بار وضعیت Secretهای Production و Deploy واقعی را بدون نیاز به UI تست کنیم.
-# بعد از مشخص‌شدن نتیجه، Trigger موقت حذف می‌شود.
-# هیچ مقدار حساس داخل Repository ذخیره نشده و تمام Secretها از GitHub
-# Environment/Repository Secrets خوانده می‌شوند.
+# این Workflow عمداً فقط دستی اجرا می‌شود تا قبل از تکمیل Secretهای Production
+# هیچ Deploy ناخواسته‌ای انجام نشود. هیچ مقدار حساس داخل Repository ذخیره نشده
+# و تمام Secretها از GitHub Environment/Repository Secrets خوانده می‌شوند.
 # =============================================================================
 name: Backend Deploy
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
-    paths:
-      - ".github/workflows/backend-deploy.yml"
 
 jobs:
   deploy:
     name: Validate and deploy Worker
     runs-on: ubuntu-latest
 
-    # استفاده از GitHub Environment باعث می‌شود Secretهای Production جدا بمانند.
+    # استفاده از GitHub Environment باعث می‌شود بتوانیم Secretهای Production را
+    # جدا از سایر محیط‌ها نگهداری و در صورت نیاز برایشان Approval تعریف کنیم.
     environment: production
 
     steps:
@@ -85,7 +79,8 @@ jobs:
             fi
           done
 
-      # Wrangler Action رسمی Cloudflare Secretهای Runtime را متصل و Worker را منتشر می‌کند.
+      # Wrangler Action رسمی Cloudflare، Secretهای Runtime را به Worker متصل
+      # می‌کند و سپس کد را از پوشه backend منتشر می‌کند.
       - name: Deploy Cloudflare Worker
         id: deploy
         uses: cloudflare/wrangler-action@v4
