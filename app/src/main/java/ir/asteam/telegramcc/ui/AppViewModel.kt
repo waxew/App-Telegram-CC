@@ -90,7 +90,10 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
      */
     fun connectBot(botToken: String) {
         val token = botToken.trim()
-        if (!/^\d+:[A-Za-z0-9_-]{30,}$/.toRegex().matches(token)) {
+
+        // Regex با سینتکس خود Kotlin نوشته شده است؛ ابتدا فقط قالب واضح BotFather
+        // را چک می‌کنیم و اعتبار واقعی Token در Backend با Telegram getMe تأیید می‌شود.
+        if (!Regex("^\\d+:[A-Za-z0-9_-]{30,}$").matches(token)) {
             showError("توکن ربات معتبر نیست. آن را مستقیماً از BotFather کپی کنید.")
             return
         }
