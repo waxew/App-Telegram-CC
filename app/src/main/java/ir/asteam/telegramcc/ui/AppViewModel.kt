@@ -10,6 +10,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import ir.asteam.telegramcc.BuildConfig
 import ir.asteam.telegramcc.data.ApiClient
+import ir.asteam.telegramcc.data.Category
 import ir.asteam.telegramcc.data.Dashboard
 import ir.asteam.telegramcc.data.Merchant
 import ir.asteam.telegramcc.data.Order
@@ -27,6 +28,7 @@ import kotlinx.coroutines.withContext
 enum class AppRoute {
     Pair,
     Dashboard,
+    Categories,
     Products,
     Orders,
     Settings,
@@ -41,6 +43,7 @@ data class AppUiState(
     val loading: Boolean = true,
     val merchant: Merchant? = null,
     val dashboard: Dashboard = Dashboard(),
+    val categories: List<Category> = emptyList(),
     val products: List<Product> = emptyList(),
     val orders: List<Order> = emptyList(),
     val errorMessage: String? = null,
@@ -118,6 +121,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         _state.value = _state.value.copy(route = route, errorMessage = null, infoMessage = null)
         when (route) {
             AppRoute.Dashboard -> refreshDashboard()
+            AppRoute.Categories -> refreshCategories()
             AppRoute.Products -> refreshProducts()
             AppRoute.Orders -> refreshOrders()
             else -> Unit
@@ -142,6 +146,84 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             val dashboard = client.dashboard()
             val version = runCatching { ApiClient(preferences.baseUrl).version() }.getOrNull()
             _state.value = _state.value.copy(loading = false, dashboard = dashboard, versionInfo = version)
+        }
+    }
+
+    /** Refresh فهرست دسته‌بندی‌های فروشگاه. */
+    fun refreshCategories() {
+        runAuthenticated { client ->
+            _state.value = _state.value.copy(loading = true)
+            val categories = client.categories()
+            _state.value = _state.value.copy(loading = false, categories = categories)
+        }
+    }
+
+    /** ساخت دسته‌بندی و همگام‌سازی دوباره لیست با سرور. */
+    fun createCategory(name: String) {
+        if (name.isBlank()) {
+            showError("نام دسته‌بندی را وارد کنید.")
+            return
+        }
+        runAuthenticated { client ->
+            _state.value = _state.value.copy(loading = true)
+            client.createCategory(name)
+            val categories = client.categories()
+            _state.value = _state.value.copy(
+                loading = false,
+                categories = categories,
+                infoMessage = "دسته‌بندی اضافه شد.",
+            )
+        }
+    }
+
+    /** ویرایش نام و ترتیب نمایش دسته‌بندی. */
+    fun updateCategory(category: Category, name: String, sortOrder: Int) {
+        if (name.isBlank()) {
+            showError("نام دسته‌بندی نمی‌تواند خالی باشد.")
+            return
+        }
+        runAuthenticated { client ->
+            _state.value = _state.value.copy(loading = true)
+            client.updateCategory(
+                categoryId = category.id,
+                name = name,
+                isActive = category.isActive,
+                sortOrder = sortOrder,
+            )
+            val categories = client.categories()
+            _state.value = _state.value.copy(
+                loading = false,
+                categories = categories,
+                infoMessage = "دسته‌بندی ویرایش شد.",
+            )
+        }
+    }
+
+    /** فعال/غیرفعال کردن دسته‌بندی بدون حذف محصولات آن. */
+    fun setCategoryActive(category: Category, active: Boolean) {
+        runAuthenticated { client ->
+            client.updateCategory(
+                categoryId = category.id,
+                name = category.name,
+                isActive = active,
+                sortOrder = category.sortOrder,
+            )
+            val categories = client.categories()
+            _state.value = _state.value.copy(categories = categories)
+        }
+    }
+
+    /** حذف دسته‌بندی و دریافت دوباره لیست برای نمایش نتیجه واقعی سرور. */
+    fun deleteCategory(category: Category) {
+        runAuthenticated { client ->
+            _state.value = _state.value.copy(loading = true)
+            client.deleteCategory(category.id)
+            val categories = client.categories()
+            _state.value = _state.value.copy(
+                loading = false,
+                categories = categories,
+                infoMessage = "دسته‌بندی حذف شد.",
+            )
         }
     }
 

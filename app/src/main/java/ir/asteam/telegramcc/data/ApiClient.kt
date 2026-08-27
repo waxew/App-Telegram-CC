@@ -80,6 +80,48 @@ class ApiClient(
         }
     }
 
+    /** ساخت دسته‌بندی جدید و برگرداندن رکورد ذخیره‌شده از سرور. */
+    fun createCategory(name: String): Category {
+        val root = request(
+            "POST",
+            "/api/v1/categories",
+            JSONObject().put("name", name.trim()),
+        )
+        val item = root.getJSONObject("category")
+        return Category(
+            id = item.getString("id"),
+            name = item.optString("name"),
+            isActive = item.optBoolean("is_active", true),
+            sortOrder = item.optInt("sort_order", 0),
+        )
+    }
+
+    /** ویرایش نام، وضعیت و ترتیب نمایش یک دسته‌بندی متعلق به همین Merchant. */
+    fun updateCategory(
+        categoryId: String,
+        name: String,
+        isActive: Boolean,
+        sortOrder: Int,
+    ): Category {
+        val body = JSONObject()
+            .put("name", name.trim())
+            .put("isActive", isActive)
+            .put("sortOrder", sortOrder)
+        val root = request("PATCH", "/api/v1/categories/$categoryId", body)
+        val item = root.getJSONObject("category")
+        return Category(
+            id = item.getString("id"),
+            name = item.optString("name"),
+            isActive = item.optBoolean("is_active", true),
+            sortOrder = item.optInt("sort_order", 0),
+        )
+    }
+
+    /** حذف دسته‌بندی؛ Backend مالکیت merchant_id را دوباره کنترل می‌کند. */
+    fun deleteCategory(categoryId: String) {
+        request("DELETE", "/api/v1/categories/$categoryId")
+    }
+
     /** دریافت آخرین محصولات فروشگاه. */
     fun products(): List<Product> {
         val array = request("GET", "/api/v1/products").optJSONArray("products") ?: JSONArray()
