@@ -27,6 +27,14 @@ android {
         // نسخهٔ قابل نمایش برای کاربر.
         versionName = "1.0.0"
 
+        // آدرس Backend رسمی پروژه داخل خود Build قرار می‌گیرد تا کاربر هیچ‌وقت
+        // Worker/Cloudflare/URL را نبیند یا دستی وارد نکند. این URL Secret نیست.
+        buildConfigField(
+            "String",
+            "BACKEND_BASE_URL",
+            "\"https://app-telegram-cc.bustling-larch.workers.dev\"",
+        )
+
         // Runner پیش‌فرض تست‌های Instrumented.
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -34,7 +42,7 @@ android {
     buildFeatures {
         // رابط کاربری کاملاً با Jetpack Compose ساخته می‌شود.
         compose = true
-        // برای نمایش versionName داخل صفحه «درباره نرم‌افزار» به BuildConfig نیاز داریم.
+        // برای نمایش versionName و BACKEND_BASE_URL داخل BuildConfig نیاز داریم.
         buildConfig = true
     }
 
