@@ -1,5 +1,5 @@
 # =============================================================================
-# CI Backend: dependency install، Syntax check و Cloudflare dry-run build.
+# CI Backend: نصب dependencyها، Syntax Check، تست‌های خودکار و Cloudflare dry-run.
 # =============================================================================
 name: Backend CI
 
@@ -17,19 +17,28 @@ jobs:
         working-directory: backend
 
     steps:
+      # سورس همان Commit را برای تست و Build دریافت می‌کنیم.
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # Runtime پروژه طبق package.json روی Node.js 22 تثبیت شده است.
       - name: Set up Node.js 22
         uses: actions/setup-node@v4
         with:
           node-version: "22"
 
+      # dependencyهای واقعی Backend نصب می‌شوند تا Dry-run شبیه Production باشد.
       - name: Install dependencies
         run: npm install --no-audit --no-fund
 
+      # قبل از تست، تمام فایل‌های JavaScript/MJS از نظر Syntax بررسی می‌شوند.
       - name: Check JavaScript syntax
         run: npm run check
 
+      # تست‌های رمزنگاری و تولید Credentialها جلوی Regression امنیتی را می‌گیرند.
+      - name: Run backend security tests
+        run: npm test
+
+      # در پایان Wrangler پروژه را Build می‌کند، ولی چیزی Deploy نمی‌شود.
       - name: Build Worker without deploying
         run: npm run deploy:check
