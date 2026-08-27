@@ -25,6 +25,9 @@ jobs:
           cat bootstrap-xz.part-* | base64 -d > /tmp/project.tar.xz
           tar -xJf /tmp/project.tar.xz -C .
           rm -f bootstrap-xz.part-* bootstrap-content.part-00
+          # Workflow files are added separately through the GitHub connector because
+          # GITHUB_TOKEN cannot create new workflow files without workflows permission.
+          rm -f .github/workflows/android-ci.yml .github/workflows/backend-ci.yml
           rm -f .github/workflows/bootstrap.yml
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
