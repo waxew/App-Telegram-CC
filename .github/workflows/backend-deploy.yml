@@ -1,0 +1,108 @@
+# =============================================================================
+# انتشار Production بک‌اند App-Telegram-CC روی Cloudflare Workers.
+#
+# این Workflow عمداً فقط دستی اجرا می‌شود تا قبل از تکمیل Secretهای Production
+# هیچ Deploy ناخواسته‌ای انجام نشود. هیچ مقدار حساس داخل Repository ذخیره نشده
+# و تمام Secretها از GitHub Environment/Repository Secrets خوانده می‌شوند.
+# =============================================================================
+name: Backend Deploy
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Validate and deploy Worker
+    runs-on: ubuntu-latest
+
+    # استفاده از GitHub Environment باعث می‌شود بتوانیم Secretهای Production را
+    # جدا از سایر محیط‌ها نگهداری و در صورت نیاز برایشان Approval تعریف کنیم.
+    environment: production
+
+    steps:
+      # همان Commit انتخاب‌شده برای Deploy را دریافت می‌کنیم.
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      # Runtime بک‌اند طبق package.json روی Node.js 22 است.
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      # Dependencyها قبل از تست نصب می‌شوند.
+      - name: Install backend dependencies
+        working-directory: backend
+        run: npm install --no-audit --no-fund
+
+      # قبل از هر انتشار، همان کنترل‌های CI دوباره اجرا می‌شوند.
+      - name: Check JavaScript syntax
+        working-directory: backend
+        run: npm run check
+
+      - name: Run backend tests
+        working-directory: backend
+        run: npm test
+
+      # اگر حتی یکی از Secretهای الزامی تعریف نشده باشد، Deploy قبل از تماس با
+      # Cloudflare متوقف می‌شود. مقدار Secretها هرگز در Log چاپ نمی‌شود.
+      - name: Verify production secrets exist
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          MASTER_BOT_TOKEN: ${{ secrets.MASTER_BOT_TOKEN }}
+          MASTER_WEBHOOK_SECRET: ${{ secrets.MASTER_WEBHOOK_SECRET }}
+          WEBHOOK_BASE_URL: ${{ secrets.WEBHOOK_BASE_URL }}
+          TOKEN_ENCRYPTION_KEY: ${{ secrets.TOKEN_ENCRYPTION_KEY }}
+          PIN_PEPPER: ${{ secrets.PIN_PEPPER }}
+          ADMIN_SETUP_SECRET: ${{ secrets.ADMIN_SETUP_SECRET }}
+        run: |
+          set -euo pipefail
+          required=(
+            CLOUDFLARE_API_TOKEN
+            CLOUDFLARE_ACCOUNT_ID
+            SUPABASE_SERVICE_ROLE_KEY
+            MASTER_BOT_TOKEN
+            MASTER_WEBHOOK_SECRET
+            WEBHOOK_BASE_URL
+            TOKEN_ENCRYPTION_KEY
+            PIN_PEPPER
+            ADMIN_SETUP_SECRET
+          )
+
+          for name in "${required[@]}"; do
+            if [ -z "${!name:-}" ]; then
+              echo "Missing required production secret: ${name}"
+              exit 1
+            fi
+          done
+
+      # Wrangler Action رسمی Cloudflare، Secretهای Runtime را به Worker متصل
+      # می‌کند و سپس کد را از پوشه backend منتشر می‌کند.
+      - name: Deploy Cloudflare Worker
+        id: deploy
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: backend
+          wranglerVersion: "4.125.0"
+          command: deploy
+          secrets: |
+            SUPABASE_SERVICE_ROLE_KEY
+            MASTER_BOT_TOKEN
+            MASTER_WEBHOOK_SECRET
+            WEBHOOK_BASE_URL
+            TOKEN_ENCRYPTION_KEY
+            PIN_PEPPER
+            ADMIN_SETUP_SECRET
+        env:
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          MASTER_BOT_TOKEN: ${{ secrets.MASTER_BOT_TOKEN }}
+          MASTER_WEBHOOK_SECRET: ${{ secrets.MASTER_WEBHOOK_SECRET }}
+          WEBHOOK_BASE_URL: ${{ secrets.WEBHOOK_BASE_URL }}
+          TOKEN_ENCRYPTION_KEY: ${{ secrets.TOKEN_ENCRYPTION_KEY }}
+          PIN_PEPPER: ${{ secrets.PIN_PEPPER }}
+          ADMIN_SETUP_SECRET: ${{ secrets.ADMIN_SETUP_SECRET }}
