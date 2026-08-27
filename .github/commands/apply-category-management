@@ -1,0 +1,2 @@
+# One-time trigger for .github/workflows/apply-category-management.yml
+# After the coordinated Android patch succeeds, this marker and its workflow are removed.
