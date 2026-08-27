@@ -227,29 +227,78 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    /** Refresh لیست محصولات. */
+    /** Refresh هم‌زمان محصولات و دسته‌بندی‌ها برای نمایش فرم مدیریت کامل. */
     fun refreshProducts() {
         runAuthenticated { client ->
             _state.value = _state.value.copy(loading = true)
+            val categories = client.categories()
             val products = client.products()
-            _state.value = _state.value.copy(loading = false, products = products)
+            _state.value = _state.value.copy(
+                loading = false,
+                categories = categories,
+                products = products,
+            )
         }
     }
 
-    /** ساخت یک محصول پایه و Refresh لیست. */
-    fun createProduct(name: String, price: Long, description: String) {
+    /** ساخت محصول با دسته‌بندی اختیاری و Refresh لیست واقعی سرور. */
+    fun createProduct(
+        name: String,
+        price: Long,
+        description: String,
+        categoryId: String?,
+    ) {
         if (name.isBlank()) {
             showError("نام محصول را وارد کنید.")
             return
         }
+        if (price < 0L) {
+            showError("قیمت محصول معتبر نیست.")
+            return
+        }
         runAuthenticated { client ->
             _state.value = _state.value.copy(loading = true)
-            client.createProduct(name, price, description)
+            client.createProduct(name, price, description, categoryId)
             val products = client.products()
             _state.value = _state.value.copy(
                 loading = false,
                 products = products,
                 infoMessage = "محصول اضافه شد.",
+            )
+        }
+    }
+
+    /** ویرایش کامل محصول و همگام‌سازی دوباره با Backend. */
+    fun updateProduct(
+        product: Product,
+        name: String,
+        price: Long,
+        description: String,
+        categoryId: String?,
+    ) {
+        if (name.isBlank()) {
+            showError("نام محصول نمی‌تواند خالی باشد.")
+            return
+        }
+        if (price < 0L) {
+            showError("قیمت محصول معتبر نیست.")
+            return
+        }
+        runAuthenticated { client ->
+            _state.value = _state.value.copy(loading = true)
+            client.updateProduct(
+                productId = product.id,
+                name = name,
+                price = price,
+                description = description,
+                categoryId = categoryId,
+                isActive = product.isActive,
+            )
+            val products = client.products()
+            _state.value = _state.value.copy(
+                loading = false,
+                products = products,
+                infoMessage = "محصول ویرایش شد.",
             )
         }
     }
@@ -260,6 +309,20 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             client.setProductActive(product.id, active)
             val products = client.products()
             _state.value = _state.value.copy(products = products)
+        }
+    }
+
+    /** حذف محصول بعد از تأیید UI و Refresh نتیجه نهایی سرور. */
+    fun deleteProduct(product: Product) {
+        runAuthenticated { client ->
+            _state.value = _state.value.copy(loading = true)
+            client.deleteProduct(product.id)
+            val products = client.products()
+            _state.value = _state.value.copy(
+                loading = false,
+                products = products,
+                infoMessage = "محصول حذف شد.",
+            )
         }
     }
 

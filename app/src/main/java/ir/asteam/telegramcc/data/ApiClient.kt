@@ -143,32 +143,57 @@ class ApiClient(
         }
     }
 
-    /** ساخت محصول ساده؛ ویرایش جزئیات بیشتر در فاز بعد به همین API متصل می‌شود. */
-    fun createProduct(name: String, price: Long, description: String): Product {
+    /** ساخت محصول با دسته‌بندی اختیاری و برگرداندن رکورد ذخیره‌شده. */
+    fun createProduct(
+        name: String,
+        price: Long,
+        description: String,
+        categoryId: String?,
+    ): Product {
         val body = JSONObject()
             .put("name", name.trim())
             .put("price", price)
             .put("description", description.trim())
+
+        // JSONObject.NULL باعث می‌شود Backend صریحاً محصول را بدون دسته‌بندی ذخیره کند.
+        body.put("categoryId", categoryId ?: JSONObject.NULL)
+
         val root = request("POST", "/api/v1/products", body)
-        val item = root.getJSONObject("product")
-        return Product(
-            id = item.getString("id"),
-            categoryId = item.optNullableString("category_id"),
-            name = item.optString("name_fa", item.optString("name_en", "محصول")),
-            description = item.optString("description", ""),
-            price = item.optLong("price", 0L),
-            isActive = item.optBoolean("is_active", true),
-            createdAt = item.optString("created_at", ""),
-        )
+        return parseProduct(root.getJSONObject("product"))
     }
 
-    /** فعال/غیرفعال کردن سریع محصول. */
+    /** ویرایش کامل مشخصات قابل مدیریت محصول. */
+    fun updateProduct(
+        productId: String,
+        name: String,
+        price: Long,
+        description: String,
+        categoryId: String?,
+        isActive: Boolean,
+    ): Product {
+        val body = JSONObject()
+            .put("name", name.trim())
+            .put("price", price)
+            .put("description", description.trim())
+            .put("isActive", isActive)
+            .put("categoryId", categoryId ?: JSONObject.NULL)
+
+        val root = request("PATCH", "/api/v1/products/$productId", body)
+        return parseProduct(root.getJSONObject("product"))
+    }
+
+    /** فعال/غیرفعال کردن سریع محصول بدون دست‌زدن به بقیه فیلدها. */
     fun setProductActive(productId: String, active: Boolean) {
         request(
             "PATCH",
             "/api/v1/products/$productId",
             JSONObject().put("isActive", active),
         )
+    }
+
+    /** حذف محصول؛ Backend merchant_id را دوباره کنترل می‌کند. */
+    fun deleteProduct(productId: String) {
+        request("DELETE", "/api/v1/products/$productId")
     }
 
     /** دریافت سفارش‌ها. */
@@ -271,6 +296,17 @@ class ApiClient(
             connection.disconnect()
         }
     }
+
+    /** Product JSON را به مدل یکتای اپ تبدیل می‌کند. */
+    private fun parseProduct(item: JSONObject): Product = Product(
+        id = item.getString("id"),
+        categoryId = item.optNullableString("category_id"),
+        name = item.optString("name_fa", item.optString("name_en", "محصول")),
+        description = item.optString("description", ""),
+        price = item.optLong("price", 0L),
+        isActive = item.optBoolean("is_active", true),
+        createdAt = item.optString("created_at", ""),
+    )
 
     /** Merchant JSON را به مدل امن و قابل استفاده UI تبدیل می‌کند. */
     private fun parseMerchant(json: JSONObject): Merchant = Merchant(

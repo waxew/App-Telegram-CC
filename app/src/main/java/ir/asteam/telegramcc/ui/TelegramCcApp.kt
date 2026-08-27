@@ -294,7 +294,7 @@ private fun AuthenticatedShell(
                 when (state.route) {
                     AppRoute.Dashboard -> DashboardScreen(state, viewModel)
                     AppRoute.Categories -> CategoryManagementScreen(state, viewModel)
-                    AppRoute.Products -> ProductsScreen(state, viewModel)
+                    AppRoute.Products -> ProductManagementScreen(state, viewModel)
                     AppRoute.Orders -> OrdersScreen(state, viewModel)
                     AppRoute.Settings -> SettingsScreen(state, viewModel)
                     AppRoute.AboutUs -> AboutUsScreen()
