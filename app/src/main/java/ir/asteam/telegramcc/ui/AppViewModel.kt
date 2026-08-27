@@ -1,6 +1,7 @@
 // =============================================================================
 // ui/AppViewModel.kt
-// State و عملیات اصلی اپ: Pairing، بازیابی نشست، داشبورد، محصولات و سفارش‌ها.
+// State و عملیات اصلی اپ: اتصال مستقیم BotFather Token، نشست امن، داشبورد،
+// دسته‌بندی‌ها، محصولات، مشتری‌ها، سفارش‌ها و تنظیمات.
 // =============================================================================
 package ir.asteam.telegramcc.ui
 
@@ -10,6 +11,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import ir.asteam.telegramcc.BuildConfig
 import ir.asteam.telegramcc.data.ApiClient
+import ir.asteam.telegramcc.data.BotConnectClient
 import ir.asteam.telegramcc.data.Category
 import ir.asteam.telegramcc.data.Customer
 import ir.asteam.telegramcc.data.Dashboard
@@ -70,7 +72,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         AppUiState(
             loading = true,
             notificationsEnabled = preferences.notificationsEnabled,
-            baseUrl = preferences.baseUrl,
+            baseUrl = preferences.baseUrl.ifBlank { BuildConfig.BACKEND_BASE_URL },
         )
     )
 
@@ -82,7 +84,49 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         restoreSession()
     }
 
-    /** Pair کردن اپ با Worker از طریق کد یک‌بارمصرفی که ربات تولید کرده است. */
+    /**
+     * فلو اصلی نسخه نهایی: کاربر فقط BotFather Token خودش را وارد می‌کند.
+     * آدرس Backend ثابت داخل BuildConfig است و Token پس از صدور Session ذخیره نمی‌شود.
+     */
+    fun connectBot(botToken: String) {
+        val token = botToken.trim()
+        if (!/^\d+:[A-Za-z0-9_-]{30,}$/.toRegex().matches(token)) {
+            showError("توکن ربات معتبر نیست. آن را مستقیماً از BotFather کپی کنید.")
+            return
+        }
+
+        runNetwork {
+            _state.value = _state.value.copy(loading = true, errorMessage = null, infoMessage = null)
+            val baseUrl = BuildConfig.BACKEND_BASE_URL.trim().trimEnd('/')
+            val result = BotConnectClient(baseUrl).connect(
+                botToken = token,
+                deviceName = "${Build.MANUFACTURER} ${Build.MODEL}",
+            )
+
+            // فقط URL عمومی Backend و Session رمز‌شده ذخیره می‌شوند؛ Bot Token ذخیره نمی‌شود.
+            preferences.baseUrl = baseUrl
+            preferences.saveSessionToken(result.sessionToken)
+
+            val authenticatedClient = ApiClient(baseUrl, result.sessionToken)
+            val dashboard = authenticatedClient.dashboard()
+            val version = runCatching { ApiClient(baseUrl).version() }.getOrNull()
+
+            _state.value = _state.value.copy(
+                route = AppRoute.Dashboard,
+                loading = false,
+                merchant = result.merchant,
+                dashboard = dashboard,
+                baseUrl = baseUrl,
+                versionInfo = version,
+                infoMessage = "ربات با موفقیت متصل شد.",
+            )
+        }
+    }
+
+    /**
+     * Pairing قدیمی فقط برای سازگاری سورس قبلی نگه داشته شده است.
+     * UI جدید دیگر این متد را به کاربر نمایش نمی‌دهد.
+     */
     fun pair(baseUrl: String, code: String) {
         if (!baseUrl.trim().startsWith("https://")) {
             showError("آدرس Worker باید با https:// شروع شود.")
@@ -100,16 +144,11 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 code = code,
                 deviceName = "${Build.MANUFACTURER} ${Build.MODEL}",
             )
-
-            // URL غیرحساس و Session رمز‌شده روی دستگاه ذخیره می‌شوند.
             preferences.baseUrl = normalized
             preferences.saveSessionToken(result.sessionToken)
-
-            // بعد از Pair، داده‌های صفحه اول از همان نشست دریافت می‌شوند.
             val authenticatedClient = ApiClient(normalized, result.sessionToken)
             val dashboard = authenticatedClient.dashboard()
             val version = runCatching { ApiClient(normalized).version() }.getOrNull()
-
             _state.value = _state.value.copy(
                 route = AppRoute.Dashboard,
                 loading = false,
@@ -135,11 +174,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    /**
-     * رفتار Back برنامه.
-     * جزئیات سفارش یک سطح زیر فهرست سفارش‌هاست، بنابراین ابتدا به Orders برمی‌گردد؛
-     * سایر صفحات فرعی مثل قبل به داشبورد برمی‌گردند.
-     */
+    /** رفتار Back: جزئیات سفارش به سفارش‌ها و سایر صفحات فرعی به داشبورد برمی‌گردند. */
     fun navigateBack(): Boolean {
         val current = _state.value.route
         return when {
@@ -165,7 +200,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    /** Refresh فهرست دسته‌بندی‌های فروشگاه. */
+    /** Refresh فهرست دسته‌بندی‌ها. */
     fun refreshCategories() {
         runAuthenticated { client ->
             _state.value = _state.value.copy(loading = true)
@@ -174,7 +209,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    /** ساخت دسته‌بندی و همگام‌سازی دوباره لیست با سرور. */
+    /** ساخت دسته‌بندی و همگام‌سازی لیست. */
     fun createCategory(name: String) {
         if (name.isBlank()) {
             showError("نام دسته‌بندی را وارد کنید.")
@@ -184,11 +219,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             _state.value = _state.value.copy(loading = true)
             client.createCategory(name)
             val categories = client.categories()
-            _state.value = _state.value.copy(
-                loading = false,
-                categories = categories,
-                infoMessage = "دسته‌بندی اضافه شد.",
-            )
+            _state.value = _state.value.copy(loading = false, categories = categories, infoMessage = "دسته‌بندی اضافه شد.")
         }
     }
 
@@ -200,70 +231,41 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         }
         runAuthenticated { client ->
             _state.value = _state.value.copy(loading = true)
-            client.updateCategory(
-                categoryId = category.id,
-                name = name,
-                isActive = category.isActive,
-                sortOrder = sortOrder,
-            )
+            client.updateCategory(category.id, name, category.isActive, sortOrder)
             val categories = client.categories()
-            _state.value = _state.value.copy(
-                loading = false,
-                categories = categories,
-                infoMessage = "دسته‌بندی ویرایش شد.",
-            )
+            _state.value = _state.value.copy(loading = false, categories = categories, infoMessage = "دسته‌بندی ویرایش شد.")
         }
     }
 
     /** فعال/غیرفعال کردن دسته‌بندی بدون حذف محصولات آن. */
     fun setCategoryActive(category: Category, active: Boolean) {
         runAuthenticated { client ->
-            client.updateCategory(
-                categoryId = category.id,
-                name = category.name,
-                isActive = active,
-                sortOrder = category.sortOrder,
-            )
-            val categories = client.categories()
-            _state.value = _state.value.copy(categories = categories)
+            client.updateCategory(category.id, category.name, active, category.sortOrder)
+            _state.value = _state.value.copy(categories = client.categories())
         }
     }
 
-    /** حذف دسته‌بندی و دریافت دوباره لیست برای نمایش نتیجه واقعی سرور. */
+    /** حذف دسته‌بندی و دریافت دوباره لیست. */
     fun deleteCategory(category: Category) {
         runAuthenticated { client ->
             _state.value = _state.value.copy(loading = true)
             client.deleteCategory(category.id)
-            val categories = client.categories()
-            _state.value = _state.value.copy(
-                loading = false,
-                categories = categories,
-                infoMessage = "دسته‌بندی حذف شد.",
-            )
+            _state.value = _state.value.copy(loading = false, categories = client.categories(), infoMessage = "دسته‌بندی حذف شد.")
         }
     }
 
-    /** Refresh هم‌زمان محصولات و دسته‌بندی‌ها برای نمایش فرم مدیریت کامل. */
+    /** Refresh محصولات و دسته‌بندی‌ها. */
     fun refreshProducts() {
         runAuthenticated { client ->
             _state.value = _state.value.copy(loading = true)
             val categories = client.categories()
             val products = client.products()
-            _state.value = _state.value.copy(
-                loading = false,
-                categories = categories,
-                products = products,
-            )
+            _state.value = _state.value.copy(loading = false, categories = categories, products = products)
         }
     }
 
-    /** ساخت محصول با دسته‌بندی اختیاری و Refresh لیست واقعی سرور. */
-    fun createProduct(
-        name: String,
-        price: Long,
-        description: String,
-        categoryId: String?,
-    ) {
+    /** ساخت محصول. */
+    fun createProduct(name: String, price: Long, description: String, categoryId: String?) {
         if (name.isBlank()) {
             showError("نام محصول را وارد کنید.")
             return
@@ -275,23 +277,12 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         runAuthenticated { client ->
             _state.value = _state.value.copy(loading = true)
             client.createProduct(name, price, description, categoryId)
-            val products = client.products()
-            _state.value = _state.value.copy(
-                loading = false,
-                products = products,
-                infoMessage = "محصول اضافه شد.",
-            )
+            _state.value = _state.value.copy(loading = false, products = client.products(), infoMessage = "محصول اضافه شد.")
         }
     }
 
-    /** ویرایش کامل محصول و همگام‌سازی دوباره با Backend. */
-    fun updateProduct(
-        product: Product,
-        name: String,
-        price: Long,
-        description: String,
-        categoryId: String?,
-    ) {
+    /** ویرایش کامل محصول. */
+    fun updateProduct(product: Product, name: String, price: Long, description: String, categoryId: String?) {
         if (name.isBlank()) {
             showError("نام محصول نمی‌تواند خالی باشد.")
             return
@@ -302,52 +293,33 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         }
         runAuthenticated { client ->
             _state.value = _state.value.copy(loading = true)
-            client.updateProduct(
-                productId = product.id,
-                name = name,
-                price = price,
-                description = description,
-                categoryId = categoryId,
-                isActive = product.isActive,
-            )
-            val products = client.products()
-            _state.value = _state.value.copy(
-                loading = false,
-                products = products,
-                infoMessage = "محصول ویرایش شد.",
-            )
+            client.updateProduct(product.id, name, price, description, categoryId, product.isActive)
+            _state.value = _state.value.copy(loading = false, products = client.products(), infoMessage = "محصول ویرایش شد.")
         }
     }
 
-    /** فعال یا غیرفعال کردن محصول بدون حذف اطلاعات آن. */
+    /** فعال یا غیرفعال کردن محصول. */
     fun setProductActive(product: Product, active: Boolean) {
         runAuthenticated { client ->
             client.setProductActive(product.id, active)
-            val products = client.products()
-            _state.value = _state.value.copy(products = products)
+            _state.value = _state.value.copy(products = client.products())
         }
     }
 
-    /** حذف محصول بعد از تأیید UI و Refresh نتیجه نهایی سرور. */
+    /** حذف محصول. */
     fun deleteProduct(product: Product) {
         runAuthenticated { client ->
             _state.value = _state.value.copy(loading = true)
             client.deleteProduct(product.id)
-            val products = client.products()
-            _state.value = _state.value.copy(
-                loading = false,
-                products = products,
-                infoMessage = "محصول حذف شد.",
-            )
+            _state.value = _state.value.copy(loading = false, products = client.products(), infoMessage = "محصول حذف شد.")
         }
     }
 
-    /** Refresh فهرست مشتریان؛ موجودی کیف‌پول فقط برای نمایش دریافت می‌شود. */
+    /** Refresh مشتریان؛ کیف‌پول فقط Read-only است. */
     fun refreshCustomers() {
         runAuthenticated { client ->
             _state.value = _state.value.copy(loading = true)
-            val customers = client.customers()
-            _state.value = _state.value.copy(loading = false, customers = customers)
+            _state.value = _state.value.copy(loading = false, customers = client.customers())
         }
     }
 
@@ -355,35 +327,29 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     fun refreshOrders() {
         runAuthenticated { client ->
             _state.value = _state.value.copy(loading = true)
-            val orders = client.orders()
-            _state.value = _state.value.copy(loading = false, orders = orders)
+            _state.value = _state.value.copy(loading = false, orders = client.orders())
         }
     }
 
-    /** بازکردن یک سفارش؛ جزئیات فقط پس از پاسخ موفق سرور نمایش داده می‌شود. */
+    /** بازکردن جزئیات سفارش. */
     fun openOrder(order: Order) {
         runAuthenticated { client ->
             _state.value = _state.value.copy(loading = true, errorMessage = null)
             val detail = client.orderDetail(order.id)
-            _state.value = _state.value.copy(
-                route = AppRoute.OrderDetail,
-                loading = false,
-                orderDetail = detail,
-            )
+            _state.value = _state.value.copy(route = AppRoute.OrderDetail, loading = false, orderDetail = detail)
         }
     }
 
-    /** تازه‌سازی سفارش بازشده بدون تغییر Route. */
+    /** تازه‌سازی سفارش بازشده. */
     fun refreshOrderDetail() {
         val current = _state.value.orderDetail ?: return
         runAuthenticated { client ->
             _state.value = _state.value.copy(loading = true)
-            val detail = client.orderDetail(current.id)
-            _state.value = _state.value.copy(loading = false, orderDetail = detail)
+            _state.value = _state.value.copy(loading = false, orderDetail = client.orderDetail(current.id))
         }
     }
 
-    /** تغییر وضعیت در صفحه جزئیات و همگام‌سازی هم جزئیات و هم فهرست سفارش‌ها. */
+    /** تغییر وضعیت در صفحه جزئیات. */
     fun updateOrderDetailStatus(status: String) {
         val current = _state.value.orderDetail ?: return
         runAuthenticated { client ->
@@ -391,28 +357,19 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             client.updateOrderStatus(current.id, status)
             val detail = client.orderDetail(current.id)
             val orders = client.orders()
-            _state.value = _state.value.copy(
-                loading = false,
-                orderDetail = detail,
-                orders = orders,
-                infoMessage = "وضعیت سفارش به‌روز شد.",
-            )
+            _state.value = _state.value.copy(loading = false, orderDetail = detail, orders = orders, infoMessage = "وضعیت سفارش به‌روز شد.")
         }
     }
 
-    /** تغییر وضعیت سفارش و دریافت مجدد لیست برای همگام‌سازی. */
+    /** تغییر وضعیت سفارش از فهرست. */
     fun updateOrderStatus(order: Order, status: String) {
         runAuthenticated { client ->
             client.updateOrderStatus(order.id, status)
-            val orders = client.orders()
-            _state.value = _state.value.copy(
-                orders = orders,
-                infoMessage = "وضعیت سفارش به‌روز شد.",
-            )
+            _state.value = _state.value.copy(orders = client.orders(), infoMessage = "وضعیت سفارش به‌روز شد.")
         }
     }
 
-    /** ذخیره تنظیمات Merchant؛ PIN و Secrets در این فرم عمداً وجود ندارند. */
+    /** ذخیره تنظیمات Merchant؛ Secretها در این فرم وجود ندارند. */
     fun saveSettings(
         storeName: String,
         mandatoryChannel: String,
@@ -432,56 +389,49 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                     referralPercent = referralPercent,
                 )
             )
-            _state.value = _state.value.copy(
-                loading = false,
-                merchant = updated,
-                infoMessage = "تنظیمات ذخیره شد.",
-            )
+            _state.value = _state.value.copy(loading = false, merchant = updated, infoMessage = "تنظیمات ذخیره شد.")
         }
     }
 
-    /** ترجیح اعلان‌ها محلی ذخیره می‌شود تا Push در فاز بعد از همین تنظیم استفاده کند. */
+    /** ترجیح اعلان‌ها محلی ذخیره می‌شود. */
     fun setNotificationsEnabled(enabled: Boolean) {
         preferences.notificationsEnabled = enabled
         _state.value = _state.value.copy(notificationsEnabled = enabled)
     }
 
-    /** خروج امن: ابتدا Session سرور revoke می‌شود و سپس Credential محلی حذف می‌شود. */
+    /** خروج امن: Session سرور revoke و Credential محلی حذف می‌شود. */
     fun logout() {
         val token = preferences.readSessionToken()
-        val baseUrl = preferences.baseUrl
+        val baseUrl = preferences.baseUrl.ifBlank { BuildConfig.BACKEND_BASE_URL }
         viewModelScope.launch {
             if (!token.isNullOrBlank() && baseUrl.isNotBlank()) {
-                withContext(Dispatchers.IO) {
-                    runCatching { ApiClient(baseUrl, token).logout() }
-                }
+                withContext(Dispatchers.IO) { runCatching { ApiClient(baseUrl, token).logout() } }
             }
             preferences.clearSession()
             _state.value = AppUiState(
                 route = AppRoute.Pair,
                 loading = false,
                 notificationsEnabled = preferences.notificationsEnabled,
-                baseUrl = baseUrl,
-                infoMessage = "اتصال اپ قطع شد.",
+                baseUrl = BuildConfig.BACKEND_BASE_URL,
+                infoMessage = "اتصال ربات قطع شد.",
             )
         }
     }
 
-    /** پیام‌های SnackBar بعد از نمایش توسط UI پاک می‌شوند. */
+    /** پیام‌های SnackBar بعد از نمایش پاک می‌شوند. */
     fun consumeMessages() {
         _state.value = _state.value.copy(errorMessage = null, infoMessage = null)
     }
 
-    /** تشخیص وجود نسخه جدید بدون اجبار به Update در منطق UI. */
+    /** تشخیص وجود نسخه جدید. */
     fun hasUpdate(): Boolean = (_state.value.versionInfo?.latestVersionCode ?: 0) > BuildConfig.VERSION_CODE
 
     /** بازیابی نشست رمز‌شده هنگام Launch. */
     private fun restoreSession() {
         val token = preferences.readSessionToken()
-        val baseUrl = preferences.baseUrl
-
-        if (token.isNullOrBlank() || baseUrl.isBlank()) {
-            _state.value = _state.value.copy(route = AppRoute.Pair, loading = false)
+        val baseUrl = preferences.baseUrl.ifBlank { BuildConfig.BACKEND_BASE_URL }
+        if (token.isNullOrBlank()) {
+            _state.value = _state.value.copy(route = AppRoute.Pair, loading = false, baseUrl = baseUrl)
             return
         }
 
@@ -495,24 +445,22 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 loading = false,
                 merchant = merchant,
                 dashboard = dashboard,
+                baseUrl = baseUrl,
                 versionInfo = version,
             )
         }
     }
 
-    /** اجرای عملیات احراز هویت‌شده با ساخت Client از Session رمزگشایی‌شده. */
+    /** اجرای عملیات احراز هویت‌شده با Session رمزگشایی‌شده. */
     private fun runAuthenticated(block: suspend (ApiClient) -> Unit) {
         val token = preferences.readSessionToken()
-        val baseUrl = preferences.baseUrl
-        if (token.isNullOrBlank() || baseUrl.isBlank()) {
+        val baseUrl = preferences.baseUrl.ifBlank { BuildConfig.BACKEND_BASE_URL }
+        if (token.isNullOrBlank()) {
             preferences.clearSession()
             _state.value = _state.value.copy(route = AppRoute.Pair, loading = false)
             return
         }
-
-        runNetwork {
-            block(ApiClient(baseUrl, token))
-        }
+        runNetwork { block(ApiClient(baseUrl, token)) }
     }
 
     /** Wrapper مشترک Coroutine برای جلوگیری از اجرای شبکه روی Main Thread. */
@@ -521,14 +469,13 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             try {
                 withContext(Dispatchers.IO) { block() }
             } catch (error: Exception) {
-                // اگر نشست منقضی/لغو شده باشد کاربر باید دوباره Pair کند.
                 if ((error as? ir.asteam.telegramcc.data.ApiException)?.statusCode == 401) {
                     preferences.clearSession()
                     _state.value = _state.value.copy(
                         route = AppRoute.Pair,
                         loading = false,
                         merchant = null,
-                        errorMessage = "نشست منقضی شده است؛ دوباره اپ را متصل کنید.",
+                        errorMessage = error.message ?: "نشست منقضی شده است؛ دوباره ربات را متصل کنید.",
                     )
                 } else {
                     _state.value = _state.value.copy(
