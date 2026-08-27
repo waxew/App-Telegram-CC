@@ -9,6 +9,17 @@ compatibility_flags = ["nodejs_compat"]
 
 [vars]
 PROJECT_NAME = "App Telegram CC"
+
+# -----------------------------------------------------------------------------
+# دیتابیس اختصاصی همین پروژه.
+# SUPABASE_URL یک آدرس عمومی است و Secret محسوب نمی‌شود؛ بنابراین عمداً اینجا
+# ثابت شده تا Worker این پروژه هیچ‌وقت به دیتابیس پروژه‌هایی مثل ai-panel وصل نشود.
+# کلید پرقدرت SUPABASE_SERVICE_ROLE_KEY همچنان فقط به‌صورت Cloudflare Secret
+# نگهداری می‌شود و هرگز نباید در این فایل یا سورس Android قرار بگیرد.
+# -----------------------------------------------------------------------------
+SUPABASE_URL = "https://hovjhysmghcuxbknpvmr.supabase.co"
+SUPABASE_PROJECT_REF = "hovjhysmghcuxbknpvmr"
+
 # اطلاعات عمومی کنترل نسخهٔ اپ؛ برای انتشار واقعی URL دانلود را تنظیم کنید.
 ANDROID_LATEST_VERSION_CODE = "1"
 ANDROID_LATEST_VERSION_NAME = "1.0.0"
