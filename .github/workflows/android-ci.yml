@@ -1,6 +1,10 @@
 # =============================================================================
-# CI Android: روی هر Push/PR تست‌ها، APK دیباگ، APK Release unsigned و بستهٔ سورس
-# را می‌سازد. Release نهایی بعد از دانلود Artifact با کلید پایدار پروژه امضا می‌شود.
+# CI Android: روی هر Push/PR تست‌ها، APK دیباگ، APK Release unsigned، بستهٔ سورس
+# و ابزار رسمی امضای Android Build Tools را می‌سازد/آرشیو می‌کند.
+#
+# Keystore خصوصی هرگز وارد CI عمومی یا Repository نمی‌شود. ابزارهای apksigner و
+# zipalign عمومی‌اند و فقط برای امضای Release با کلید پایدار خارج از Repo خروجی
+# گرفته می‌شوند.
 # =============================================================================
 name: Android CI
 
@@ -49,16 +53,28 @@ jobs:
       - name: Run tests and build APKs
         run: gradle :app:testDebugUnitTest :app:assembleDebug :app:assembleRelease --stacktrace
 
-      # نام فایل‌ها را برای تحویل خواناتر می‌کنیم.
+      # نام فایل‌ها را برای تحویل خواناتر می‌کنیم و ابزار رسمی Signing را از همان
+      # Build Tools که APK با آن ساخته شده است کنار Artifactها قرار می‌دهیم.
       - name: Prepare deliverables
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p deliverables
+          mkdir -p deliverables/android-signing-tools/lib
           cp app/build/outputs/apk/debug/app-debug.apk deliverables/App-Telegram-CC-v1.1.0-debug.apk
           cp app/build/outputs/apk/release/app-release-unsigned.apk deliverables/App-Telegram-CC-v1.1.0-release-unsigned.apk
           git archive --format=zip --output=deliverables/source.App-Telegram-CC-v1.1.0.zip HEAD
+
+          BUILD_TOOLS="$ANDROID_HOME/build-tools/36.0.0"
+          cp "$BUILD_TOOLS/apksigner" deliverables/android-signing-tools/apksigner
+          cp "$BUILD_TOOLS/lib/apksigner.jar" deliverables/android-signing-tools/lib/apksigner.jar
+          cp "$BUILD_TOOLS/zipalign" deliverables/android-signing-tools/zipalign
+          chmod +x deliverables/android-signing-tools/apksigner deliverables/android-signing-tools/zipalign
+
           sha256sum deliverables/*.apk deliverables/*.zip > deliverables/SHA256SUMS.txt
+          sha256sum deliverables/android-signing-tools/apksigner \
+                    deliverables/android-signing-tools/lib/apksigner.jar \
+                    deliverables/android-signing-tools/zipalign \
+                    > deliverables/android-signing-tools/SHA256SUMS.txt
 
       # Debug برای QA روی دستگاه واقعی نگهداری می‌شود.
       - name: Upload debug APK
@@ -84,4 +100,12 @@ jobs:
           path: |
             deliverables/source.App-Telegram-CC-v1.1.0.zip
             deliverables/SHA256SUMS.txt
+          if-no-files-found: error
+
+      # ابزارهای رسمی عمومی Android برای zipalign، امضا و Verify خروجی Release.
+      - name: Upload Android signing tools
+        uses: actions/upload-artifact@v4
+        with:
+          name: Android-Build-Tools-36-signing-tools
+          path: deliverables/android-signing-tools
           if-no-files-found: error
