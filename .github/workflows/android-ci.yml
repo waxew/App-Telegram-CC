@@ -59,7 +59,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p deliverables/android-signing-tools/lib
+          mkdir -p deliverables/android-signing-tools/lib deliverables/android-signing-tools/lib64
           cp app/build/outputs/apk/debug/app-debug.apk deliverables/App-Telegram-CC-v1.1.0-debug.apk
           cp app/build/outputs/apk/release/app-release-unsigned.apk deliverables/App-Telegram-CC-v1.1.0-release-unsigned.apk
           git archive --format=zip --output=deliverables/source.App-Telegram-CC-v1.1.0.zip HEAD
@@ -68,12 +68,14 @@ jobs:
           cp "$BUILD_TOOLS/apksigner" deliverables/android-signing-tools/apksigner
           cp "$BUILD_TOOLS/lib/apksigner.jar" deliverables/android-signing-tools/lib/apksigner.jar
           cp "$BUILD_TOOLS/zipalign" deliverables/android-signing-tools/zipalign
+          cp "$BUILD_TOOLS/lib64/libc++.so" deliverables/android-signing-tools/lib64/libc++.so
           chmod +x deliverables/android-signing-tools/apksigner deliverables/android-signing-tools/zipalign
 
           sha256sum deliverables/*.apk deliverables/*.zip > deliverables/SHA256SUMS.txt
           sha256sum deliverables/android-signing-tools/apksigner \
                     deliverables/android-signing-tools/lib/apksigner.jar \
                     deliverables/android-signing-tools/zipalign \
+                    deliverables/android-signing-tools/lib64/libc++.so \
                     > deliverables/android-signing-tools/SHA256SUMS.txt
 
       # Debug برای QA روی دستگاه واقعی نگهداری می‌شود.
