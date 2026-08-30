@@ -1,145 +1,236 @@
 # App-Telegram-CC
 
-پروژهٔ **App-Telegram-CC** از دو بخش مستقل اما متصل تشکیل شده است:
+`App-Telegram-CC` یک سامانهٔ فروشگاه‌ساز تلگرامی با پنل مدیریت Android است که از سه لایهٔ جدا و امن تشکیل شده است:
 
-- `app/` — اپ اندروید مدیریت فروشگاه با Kotlin + Jetpack Compose.
-- `backend/` — موتور فروشگاه‌ساز تلگرام روی Cloudflare Workers + Supabase.
+- `app/` — اپ Android با Kotlin + Jetpack Compose.
+- `backend/` — Cloudflare Worker برای API اپ و Webhook ربات‌های فروشگاهی.
+- `db_tel_cc` — دیتابیس اختصاصی Supabase برای Merchantها، مشتری‌ها، محصولات، سفارش‌ها، Sessionها و داده‌های فروشگاه.
 
-این ساختار عمداً دو لایه است. کلید `SUPABASE_SERVICE_ROLE_KEY`، توکن‌های BotFather و سایر Secretها فقط روی سرور می‌مانند و APK هیچ‌وقت به آن‌ها دسترسی مستقیم ندارد.
+## وضعیت Production
 
-## دیتابیس اختصاصی پروژه
+نسخهٔ فعلی: **1.1.0**
 
-این پروژه از یک Supabase Project مستقل استفاده می‌کند و نباید با دیتابیس پروژه‌های دیگر ترکیب شود:
+- Android `versionCode`: `2`
+- Android `versionName`: `1.1.0`
+- Application ID پایدار: `ir.asteam.telegramcc`
+- Worker Production: `https://app-telegram-cc.bustling-larch.workers.dev`
+- Supabase Project: `db_tel_cc`
+- Supabase Project ref: `hovjhysmghcuxbknpvmr`
 
-- Supabase Project name: `db_tel_cc`
-- Project ref: `hovjhysmghcuxbknpvmr`
-- Project URL: `https://hovjhysmghcuxbknpvmr.supabase.co`
-- Region: `eu-central-1`
+مسیر اتصال واقعی در Production تست شده است:
 
-آدرس عمومی دیتابیس در `backend/wrangler.toml` قفل شده است و Backend علاوه بر آن، قبل از ساخت Supabase Client مقدار `SUPABASE_PROJECT_REF` را با hostname بررسی می‌کند. در نتیجه اگر کسی بعداً اشتباهاً URL پروژه‌ای مثل `ai-panel` را جایگزین کند، Worker اتصال را رد می‌کند.
+`BotFather Token → Android APK → Cloudflare Worker → db_tel_cc → Telegram Bot`
 
-تمام جدول‌های `public` با RLS محافظت شده‌اند. نقش‌های `anon` و `authenticated` دسترسی مستقیم ندارند و Backend فقط از `service_role` سمت سرور استفاده می‌کند. `service_role` هرگز داخل Android، GitHub source یا `wrangler.toml` قرار نمی‌گیرد.
+کاربر نهایی دیگر Worker URL یا کد اتصال ۸ کاراکتری وارد نمی‌کند. تنها Token ربات ساخته‌شده در BotFather را داخل اپ وارد می‌کند؛ Backend اعتبار Token را با Telegram بررسی می‌کند، Merchant را ایجاد/بازیابی می‌کند، Webhook را تنظیم می‌کند و Session محدود اپ صادر می‌کند.
 
-## وضعیت نسخهٔ 1.0.0
+## قابلیت‌های Android
 
-نسخهٔ Android فعلی شامل این قسمت‌هاست:
-
-- اتصال امن اپ به فروشگاه با کد یک‌بارمصرف ۸ کاراکتری.
-- نگهداری Bearer Session با Android Keystore.
-- داشبورد تعداد مشتری، محصول، سفارش و فروش ۳۰ روز اخیر.
-- مدیریت دسته‌بندی‌ها: ایجاد، ویرایش، ترتیب، فعال/غیرفعال و حذف.
-- مدیریت محصولات: ایجاد، ویرایش، دسته‌بندی، فعال/غیرفعال و حذف.
-- فهرست و جست‌وجوی مشتری‌ها با نمایش اطلاعات تماس و کیف‌پول به‌صورت Read-only.
-- فهرست سفارش‌ها، جزئیات اقلام، جمع مبلغ، تخفیف، اطلاعات ارسال و تغییر وضعیت سفارش.
-- تنظیمات نام فروشگاه، کانال‌ها، پشتیبانی و پورسانت معرفی.
-- بخش اعلان‌ها در تنظیمات؛ کانال Push در نسخهٔ بعدی تکمیل می‌شود.
-- Drawer راست‌به‌چپ، معرفی به دوستان، درباره ما، تماس با ما و درباره نرم‌افزار.
+- اتصال مستقیم و امن با BotFather Token.
+- عدم ذخیره BotFather Token داخل گوشی.
+- Session محدود و رمز‌شده با Android Keystore.
+- داشبورد تعداد مشتری، محصول و سفارش و فروش ۳۰ روز اخیر.
+- مدیریت دسته‌بندی: ایجاد، ویرایش، ترتیب نمایش، فعال/غیرفعال و حذف.
+- مدیریت محصول: ایجاد، ویرایش، دسته‌بندی، قیمت، توضیحات، فعال/غیرفعال و حذف.
+- نمایش و جست‌وجوی مشتری‌ها.
+- نمایش سفارش‌ها و جزئیات اقلام هر سفارش.
+- تغییر وضعیت سفارش: `pending / paid / shipped / cancelled`.
+- تنظیمات نام فروشگاه، کانال اجباری، کانال گزارش، لینک پشتیبانی و درصد معرفی.
+- Drawer راست‌به‌چپ.
+- معرفی به دوستان، درباره ما، تماس با ما و درباره نرم‌افزار.
 - Back Navigation صحیح بین صفحات.
-- API کنترل نسخه برای Updateهای بعدی روی همین `applicationId`.
+- بررسی نسخه جدید از Backend.
+- پشتیبانی Dark/Light بر اساس Theme سیستم.
+
+## قابلیت‌های ربات فروشگاهی
+
+Backend یک موتور مشترک Multi-tenant دارد و برای هر فروشگاه کد جداگانه Deploy نمی‌شود. هر Merchant داده و Token رمز‌شدهٔ خودش را دارد.
+
+قابلیت‌های فعلی شامل:
+
+- نمایش دسته‌بندی و محصول.
+- سبد خرید و تغییر تعداد.
+- تسویه‌حساب و ثبت سفارش.
+- شماره تماس، آدرس و روش ارسال.
+- کد تخفیف.
+- کیف پول و Ledger.
+- معرفی/پورسانت.
+- عضویت اجباری کانال.
+- مدیریت دسته‌بندی و محصول از ربات.
+- مدیریت سفارش‌ها.
+- همکاران فروش.
+- پیام همگانی و تنظیمات فروشگاه.
 
 ## امنیت
 
-1. `bot_token` ثبت‌های جدید با AES-GCM محافظت می‌شود و plaintext وارد دیتابیس نمی‌شود.
-2. `admin_pin` با HMAC و Pepper سروری نگهداری می‌شود.
-3. Webhook ربات اصلی امکان بررسی `MASTER_WEBHOOK_SECRET` دارد.
-4. Webhook هر فروشگاه `secret_token` اختصاصی همان Merchant را بررسی می‌کند.
-5. API اپ فقط بعد از Pairing یک Session محدود به همان Merchant می‌دهد.
-6. Queryهای حساس با `merchant_id` Scope شده‌اند.
-7. Triggerهای دیتابیس مانع اتصال رکوردهای دو Merchant مختلف می‌شوند.
-8. RLS و Deny-All Policy دسترسی مستقیم کلاینت به Data API را مسدود می‌کند.
-9. Backend دارای Guard مستقل برای جلوگیری از اتصال تصادفی به Supabase Project اشتباه است.
-10. هیچ `service_role` یا BotFather token داخل سورس Android قرار ندارد.
+- Bot Token جدید به‌صورت AES-256-GCM رمزگذاری می‌شود.
+- Token plaintext جدید وارد دیتابیس نمی‌شود.
+- `TOKEN_ENCRYPTION_KEY` فقط Secret سرور است.
+- `SUPABASE_SERVICE_ROLE_KEY` فقط روی Worker قرار دارد و وارد APK یا Repository نمی‌شود.
+- Webhook هر فروشگاه `secret_token` اختصاصی دارد.
+- App Sessionها فقط به Merchant خودشان دسترسی دارند.
+- Queryهای حساس دوباره با `merchant_id` Scope می‌شوند.
+- Triggerهای Tenant Integrity مانع اتصال داده‌های دو Merchant مختلف می‌شوند.
+- RLS روی جدول‌های `public` فعال است.
+- `anon` و `authenticated` دسترسی مستقیم مدیریتی ندارند.
+- Security Advisor پروژه Supabase در ممیزی نسخه 1.1.0 بدون هشدار امنیتی است.
+- Worker دارای Guard برای جلوگیری از اتصال تصادفی به Supabase Project دیگر است.
 
-جزئیات Audit در [`docs/CODE_AUDIT.md`](docs/CODE_AUDIT.md) قرار دارد.
+## دیتابیس اختصاصی
 
-## اجرای Backend محلی
+این پروژه فقط از پروژه زیر استفاده می‌کند:
 
-1. داخل `backend/` دستور `npm install` را اجرا کنید.
-2. فایل `.env.example` را به `.dev.vars` تبدیل کنید.
-3. Secretهای واقعی را فقط داخل `.dev.vars` قرار دهید و آن را commit نکنید.
-4. `npm test` و `npm run check` را اجرا کنید.
-5. برای اجرای محلی از `npm run dev` استفاده کنید.
+- Name: `db_tel_cc`
+- Ref: `hovjhysmghcuxbknpvmr`
+- URL: `https://hovjhysmghcuxbknpvmr.supabase.co`
 
-Schema مرجع دیتابیس در `backend/sql/schema.sql` با ساختار فعلی `db_tel_cc` همگام است و شامل جدول‌ها، indexها، Triggerهای tenant-integrity و RLS است.
+اتصال به پروژه‌های دیگر از جمله `ai-panel` برای این پروژه مجاز نیست.
 
 ## Secretهای Production
 
-برای Deploy واقعی Worker این مقادیر باید به‌صورت GitHub/Cloudflare Secret تعریف شوند و نباید در Repository نوشته شوند:
+برای فلو فعلی Android فقط این Secretها برای Deploy اجباری هستند:
 
 - `CLOUDFLARE_API_TOKEN`
 - `CLOUDFLARE_ACCOUNT_ID`
-- `SUPABASE_SERVICE_ROLE_KEY` — فقط مربوط به `db_tel_cc`
-- `MASTER_BOT_TOKEN`
-- `MASTER_WEBHOOK_SECRET`
-- `WEBHOOK_BASE_URL`
+- `SUPABASE_SERVICE_ROLE_KEY`
 - `TOKEN_ENCRYPTION_KEY`
-- `PIN_PEPPER`
-- `ADMIN_SETUP_SECRET`
 
-`SUPABASE_URL` و `SUPABASE_PROJECT_REF` Secret نیستند و در `wrangler.toml` به دیتابیس اختصاصی این پروژه ثابت شده‌اند.
+مقادیر مربوط به Master Bot قدیمی فقط در صورت فعال‌کردن آن مسیر لازم می‌شوند و نباید مانع Deploy فلو مستقیم Android شوند.
 
-## انتشار Backend روی Cloudflare
+هیچ Secret واقعی نباید داخل Commit، APK، `wrangler.toml` یا مستندات عمومی قرار گیرد.
 
-Workflow دستی Production در مسیر زیر قرار دارد:
+## Release Signing Android
+
+نسخه 1.1.0 برای امضای پایدار آماده شده است. تنظیمات Gradle اطلاعات Signing را فقط از Environment می‌خواند:
+
+- `ANDROID_KEYSTORE_PATH`
+- `ANDROID_KEYSTORE_PASSWORD`
+- `ANDROID_KEY_ALIAS`
+- `ANDROID_KEY_PASSWORD`
+
+Keystore خصوصی نباید در Repository عمومی Commit شود. تمام Updateهای آینده باید با همان Keystore امضا شوند؛ در غیر این صورت Android نسخه جدید را به‌عنوان Update نسخه قبلی قبول نمی‌کند.
+
+## CI/CD
+
+### Android CI
+
+`.github/workflows/android-ci.yml`
+
+روی Push/PR:
+
+1. JDK 17 و Android API 36 را آماده می‌کند.
+2. تست‌های Unit را اجرا می‌کند.
+3. Debug APK را می‌سازد.
+4. Release unsigned APK را می‌سازد.
+5. ZIP کامل سورس همان Commit را تولید می‌کند.
+6. SHA-256 Artifactها را تولید می‌کند.
+
+### Backend CI
+
+`.github/workflows/backend-ci.yml`
+
+- Syntax Check
+- تست‌های Backend
+- تست پیکربندی Supabase اختصاصی
+- Cloudflare Wrangler dry-run
+
+### Production Deploy
 
 `.github/workflows/backend-deploy.yml`
 
-این Workflow قبل از Deploy:
+قبل از Deploy:
 
-1. dependencyها را نصب می‌کند.
-2. Syntax Check را اجرا می‌کند.
-3. تست‌های Backend را اجرا می‌کند.
-4. وجود تمام Secretهای Production را بدون چاپ مقدارشان بررسی می‌کند.
-5. Secretهای Runtime را به Worker متصل می‌کند.
-6. Worker `app-telegram-cc` را با Wrangler منتشر می‌کند.
+- Dependencyها نصب می‌شوند.
+- تست‌ها اجرا می‌شوند.
+- وجود Secretهای Production بررسی می‌شود.
+- Secretهای Runtime روی Worker ثبت می‌شوند.
+- Worker با Wrangler Deploy می‌شود.
 
-تا زمانی که Secretهای Production کامل نشده باشند، Workflow عمداً Deploy را متوقف می‌کند.
+Worker فعال:
 
-بعد از اولین Deploy موفق، Webhook ربات اصلی باید روی مسیر زیر تنظیم شود:
+`https://app-telegram-cc.bustling-larch.workers.dev`
 
-`<WEBHOOK_BASE_URL>/webhook/master`
+Health Check:
 
-و فروشگاه‌های ساخته‌شده به‌صورت خودکار Webhook اختصاصی خود را روی مسیر زیر می‌گیرند:
+`GET /`
 
-`<WEBHOOK_BASE_URL>/webhook/store/<merchantId>`
+Version API:
 
-## اجرای Android
+`GET /api/v1/app/version`
 
-پروژه را با Android Studio باز کنید و Gradle Sync را اجرا کنید. تنظیمات Build فعلی:
+اتصال BotFather:
+
+`POST /api/v1/app/connect-bot`
+
+## اجرای محلی Backend
+
+داخل پوشه `backend/`:
+
+```bash
+npm install
+npm run check
+npm test
+npm run dev
+```
+
+Secretهای محلی را فقط داخل فایل Local مانند `.dev.vars` قرار دهید و هرگز Commit نکنید.
+
+## ساخت Android
+
+پروژه را با Android Studio باز کنید و Gradle Sync را اجرا کنید.
+
+مشخصات فعلی:
 
 - `applicationId`: `ir.asteam.telegramcc`
 - `minSdk`: 26
-- `targetSdk / compileSdk`: 36
-- `versionCode`: 1
-- `versionName`: 1.0.0
+- `targetSdk`: 36
+- `compileSdk`: 36
+- `versionCode`: 2
+- `versionName`: 1.1.0
 
-اپ فقط آدرس HTTPS Worker را قبول می‌کند. سپس مالک فروشگاه داخل ربات فروشگاهی گزینهٔ «اتصال اپ مدیریت» را می‌زند و کد یک‌بارمصرف را در اپ وارد می‌کند.
+برای QA:
 
-## CI
+```text
+:app:assembleDebug
+```
 
-- `.github/workflows/android-ci.yml` پروژه Android را Build و تست می‌کند و APK دیباگ را Artifact نگه می‌دارد.
-- `.github/workflows/backend-ci.yml` Syntax، تست‌های امنیتی و Cloudflare dry-run را اجرا می‌کند.
-- `.github/workflows/backend-deploy.yml` فقط با اجرای دستی و Secretهای کامل، Production را Deploy می‌کند.
+برای Release unsigned:
 
-## ساختار
+```text
+:app:assembleRelease
+```
+
+برای Release نهایی، Signing Environment Variables باید به Keystore پایدار اشاره کنند.
+
+## ساختار Repository
 
 ```text
 App-Telegram-CC/
-├── app/                      # Kotlin / Jetpack Compose Android app
-├── backend/                  # Cloudflare Worker + Telegram bots + Supabase
-│   ├── sql/
-│   ├── scripts/
-│   └── src/
-├── docs/                     # Audit و معماری
-└── .github/workflows/        # CI + Production deploy
+├── app/                       # Android Kotlin/Compose
+├── backend/                   # Cloudflare Worker + Telegram bot engine
+│   ├── sql/                   # Schema/Migrations مرجع
+│   ├── scripts/               # ابزارهای migration/security
+│   ├── src/api/               # REST API Android
+│   ├── src/lib/               # Crypto/Supabase/session helpers
+│   └── src/storeBot/          # موتور فروشگاه تلگرامی
+├── docs/                      # Architecture/Audit/Testing
+└── .github/workflows/         # CI/CD
 ```
 
-## گام‌های بعدی
+## وضعیت تست Production
 
-- تکمیل اتصال Production Cloudflare به `db_tel_cc` با Secretهای واقعی.
-- مدیریت کدهای تخفیف در اپ Android.
-- تکمیل تنظیمات پرداخت و شماره کارت.
-- گزارش‌های پیشرفته فروش.
-- اعلان Push سفارش جدید.
-- پاک‌سازی UIهای قدیمی و Compatibility code باقی‌مانده.
-- ساخت Release امضاشده و Update-friendly با کلید امضای ثابت.
+در تست عملی Production موارد زیر با پاسخ موفق Supabase ثبت شده‌اند:
+
+- Merchant lookup: `200`
+- Merchant create: `201`
+- App Session create: `201`
+- Categories: `200/201`
+- Products: `200/201`
+- Customers: `200`
+- Orders: `200`
+- Bot Sessions: `201`
+
+این موارد نشان می‌دهند مسیر Android، Worker، Supabase و Telegram از حالت اسکلت خارج شده و Backend واقعی پروژه فعال است.
+
+## توسعه‌های نسخه‌های بعدی
+
+مواردی مانند درگاه پرداخت آنلاین، موجودی انبار پیشرفته، زیر‌دسته‌بندی، گزارش‌های تحلیلی گسترده، Push Notification، پنل وب سراسری و سیستم پلن/اشتراک جزو Roadmap نسخه‌های بعدی هستند و جزء الزامات انتشار 1.1.0 محسوب نمی‌شوند.
