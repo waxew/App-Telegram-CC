@@ -6,6 +6,8 @@ name = "app-telegram-cc"
 main = "src/index.js"
 compatibility_date = "2026-08-27"
 compatibility_flags = ["nodejs_compat"]
+workers_dev = true
+preview_urls = false
 
 [vars]
 PROJECT_NAME = "App Telegram CC"
@@ -20,8 +22,9 @@ PROJECT_NAME = "App Telegram CC"
 SUPABASE_URL = "https://hovjhysmghcuxbknpvmr.supabase.co"
 SUPABASE_PROJECT_REF = "hovjhysmghcuxbknpvmr"
 
-# اطلاعات عمومی کنترل نسخهٔ اپ؛ برای انتشار واقعی URL دانلود را تنظیم کنید.
-ANDROID_LATEST_VERSION_CODE = "1"
-ANDROID_LATEST_VERSION_NAME = "1.0.0"
+# اطلاعات عمومی کنترل نسخهٔ اپ. URL دانلود بعد از ساخت Release عمومی GitHub
+# به آدرس Asset امضاشده تغییر می‌کند؛ تا آن زمان خالی بودن آن مانع کار اپ نیست.
+ANDROID_LATEST_VERSION_CODE = "2"
+ANDROID_LATEST_VERSION_NAME = "1.1.0"
 ANDROID_DOWNLOAD_URL = ""
 ANDROID_FORCE_UPDATE = "false"
