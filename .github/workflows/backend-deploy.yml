@@ -1,16 +1,13 @@
 # =============================================================================
 # انتشار Production بک‌اند App-Telegram-CC روی Cloudflare Workers.
-# Trigger موقت push فقط برای انتشار کنترل‌شده نسخه 1.1.0 اضافه شده و پس از
-# تأیید Deploy دوباره به workflow_dispatch-only برگردانده می‌شود.
+#
+# این Workflow عمداً فقط دستی اجرا می‌شود تا Deploy ناخواسته روی Production
+# انجام نشود. برای فلو فعلی Android فقط Secretهای ضروری مستقیم بررسی می‌شوند.
 # =============================================================================
 name: Backend Deploy
 
 on:
   workflow_dispatch:
-  push:
-    branches: ["main"]
-    paths:
-      - ".github/workflows/backend-deploy.yml"
 
 jobs:
   deploy:
@@ -39,12 +36,12 @@ jobs:
         working-directory: backend
         run: npm run check
 
-      # اجرای تست‌های امنیتی و پیکربندی قبل از Deploy.
+      # اجرای تست‌های Backend قبل از هر انتشار.
       - name: Run backend tests
         working-directory: backend
         run: npm test
 
-      # فقط چهار Secret زیر برای فلو اتصال مستقیم APK اجباری‌اند.
+      # Secretهای لازم برای فلو مستقیم BotFather Token.
       - name: Verify direct-app production secrets exist
         shell: bash
         env:
@@ -68,7 +65,7 @@ jobs:
             fi
           done
 
-      # Wrangler Action رسمی Cloudflare Secretهای Runtime را ثبت و Worker را Deploy می‌کند.
+      # Wrangler Action رسمی Cloudflare Secretها را ثبت و Worker را Deploy می‌کند.
       - name: Deploy Cloudflare Worker
         id: deploy
         uses: cloudflare/wrangler-action@v4
